@@ -60,6 +60,8 @@ export const createScenario = (overrides = {}, assumptions = {}) => {
     schemaVersion: SCENARIO_SCHEMA_VERSION,
     provenance: PROVENANCE.ESTIMATED,
     earnings: { spouse1: null, spouse2: null },
+    derivedPia: { spouse1: null, spouse2: null },
+    piaSource: { spouse1: 'profile', spouse2: 'profile' },
     assumptions: {
       // Frozen at creation so a saved plan keeps reporting the tables it was
       // computed under, even after those tables are updated for a new year.
@@ -82,7 +84,36 @@ export const scenarioReducer = (state, action) => {
     case 'SET_EARNINGS': {
       if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
       const earnings = { ...state.earnings, [action.person]: action.record ?? null };
-      return { ...state, earnings, provenance: deriveProvenance(earnings) };
+      const hasRecord = Boolean(action.record);
+      return {
+        ...state,
+        earnings,
+        provenance: deriveProvenance(earnings),
+        piaSource: {
+          ...state.piaSource,
+          [action.person]: hasRecord ? 'earnings' : 'profile'
+        },
+        derivedPia: hasRecord
+          ? state.derivedPia
+          : { ...state.derivedPia, [action.person]: null }
+      };
+    }
+    case 'SET_DERIVED_PIA': {
+      if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
+      if (state.derivedPia[action.person] === action.pia) return state;
+      return {
+        ...state,
+        derivedPia: { ...state.derivedPia, [action.person]: action.pia }
+      };
+    }
+    case 'SET_PIA_SOURCE': {
+      if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
+      if (action.source !== 'profile' && action.source !== 'earnings') return state;
+      if (state.piaSource[action.person] === action.source) return state;
+      return {
+        ...state,
+        piaSource: { ...state.piaSource, [action.person]: action.source }
+      };
     }
     case 'RESTORE_META': {
       // Restores only the recorded metadata of a saved plan: the frozen
@@ -124,6 +155,8 @@ export const deserializeScenario = (raw = {}) => {
     // are authoritative only from earnings_records. A legacy payload that still
     // carries either is ignored rather than trusted.
     earnings: { spouse1: null, spouse2: null },
+    derivedPia: { spouse1: null, spouse2: null },
+    piaSource: { spouse1: 'profile', spouse2: 'profile' },
     provenance: PROVENANCE.ESTIMATED,
     // Recorded assumptions win over freshly-derived ones.
     assumptions: raw.assumptions ?? base.assumptions
@@ -154,9 +187,25 @@ export const hasThirtyFiveNonZeroYears = (record) => {
 // consider refusing to compare when a scenario's live inflation has drifted from
 // its own frozen colaRate — that drift means the saved plan no longer describes
 // the assumptions it was computed under.
+export const effectivePia = (scenario, person) => {
+  const typed = person === 'spouse2' ? scenario.spouse2Pia : scenario.spouse1Pia;
+  if (
+    scenario.piaSource?.[person] === 'earnings' &&
+    scenario.derivedPia?.[person] != null
+  ) {
+    return scenario.derivedPia[person];
+  }
+  return typed;
+};
+
+// Frozen colaRate is authoritative. Live inflation can drift after the slider
+// moves; two plans are not comparable if either has drifted from its own freeze
+// or if their frozen rates / bend-point years differ.
 export const areScenariosComparable = (a, b) =>
   a.assumptions.bendPointsYear === b.assumptions.bendPointsYear &&
-  a.inflation === b.inflation;
+  a.assumptions.colaRate === b.assumptions.colaRate &&
+  a.inflation === a.assumptions.colaRate &&
+  b.inflation === b.assumptions.colaRate;
 
 export const planLabel = (scenario) =>
   scenario.isMarried ? 'Our Lifelong Plan' : 'My Lifelong Plan';

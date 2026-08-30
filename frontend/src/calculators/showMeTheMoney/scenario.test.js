@@ -8,7 +8,8 @@ import {
   deserializeScenario,
   areScenariosComparable,
   hasThirtyFiveNonZeroYears,
-  planLabel
+  planLabel,
+  effectivePia
 } from './scenario';
 
 describe('createScenario', () => {
@@ -91,6 +92,7 @@ describe('scenarioReducer', () => {
     const next = scenarioReducer(s, { type: 'SET_EARNINGS', person: 'spouse1', record });
     expect(next.earnings.spouse1).toEqual(record);
     expect(next.provenance).toBe(PROVENANCE.VERIFIED);
+    expect(next.piaSource.spouse1).toBe('earnings');
   });
 
   it('stays estimated when an earnings record is cleared', () => {
@@ -99,6 +101,23 @@ describe('scenarioReducer', () => {
     });
     const next = scenarioReducer(s, { type: 'SET_EARNINGS', person: 'spouse1', record: null });
     expect(next.provenance).toBe(PROVENANCE.ESTIMATED);
+    expect(next.piaSource.spouse1).toBe('profile');
+    expect(next.derivedPia.spouse1).toBeNull();
+  });
+
+  it('stores a derived PIA without overwriting the typed field', () => {
+    const s = createScenario({ spouse1Pia: 2800 });
+    const next = scenarioReducer(s, { type: 'SET_DERIVED_PIA', person: 'spouse1', pia: 3414.93 });
+    expect(next.derivedPia.spouse1).toBe(3414.93);
+    expect(next.spouse1Pia).toBe(2800);
+  });
+
+  it('lets the user switch back to the typed PIA', () => {
+    const withRecord = scenarioReducer(createScenario(), {
+      type: 'SET_EARNINGS', person: 'spouse1', record: { birthYear: 1966, rows: [] }
+    });
+    const next = scenarioReducer(withRecord, { type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'profile' });
+    expect(next.piaSource.spouse1).toBe('profile');
   });
 
   it('replaces the whole scenario on LOAD', () => {
@@ -213,6 +232,28 @@ describe('hasThirtyFiveNonZeroYears', () => {
   });
 });
 
+describe('effectivePia', () => {
+  it('uses the typed PIA when there is no earnings-derived value', () => {
+    const s = createScenario({ spouse1Pia: 2800 });
+    expect(effectivePia(s, 'spouse1')).toBe(2800);
+  });
+
+  it('uses the derived PIA once it is adopted', () => {
+    let s = createScenario({ spouse1Pia: 2800 });
+    s = scenarioReducer(s, { type: 'SET_EARNINGS', person: 'spouse1', record: { birthYear: 1966, rows: [] } });
+    s = scenarioReducer(s, { type: 'SET_DERIVED_PIA', person: 'spouse1', pia: 3414.93 });
+    expect(effectivePia(s, 'spouse1')).toBe(3414.93);
+  });
+
+  it('falls back to the typed PIA after switch-back', () => {
+    let s = createScenario({ spouse1Pia: 2800 });
+    s = scenarioReducer(s, { type: 'SET_EARNINGS', person: 'spouse1', record: { birthYear: 1966, rows: [] } });
+    s = scenarioReducer(s, { type: 'SET_DERIVED_PIA', person: 'spouse1', pia: 3414.93 });
+    s = scenarioReducer(s, { type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'profile' });
+    expect(effectivePia(s, 'spouse1')).toBe(2800);
+  });
+});
+
 describe('areScenariosComparable', () => {
   it('is true when assumptions match', () => {
     const a = createScenario({ spouse1PreferredYear: 62 }, { bendPointsYear: 2026 });
@@ -220,10 +261,17 @@ describe('areScenariosComparable', () => {
     expect(areScenariosComparable(a, b)).toBe(true);
   });
 
-  it('is false when COLA differs, since the lines would not be comparable', () => {
+  it('is false when frozen COLA differs, since the lines would not be comparable', () => {
     const a = createScenario({ inflation: 0.025 }, { bendPointsYear: 2026 });
     const b = createScenario({ inflation: 0.030 }, { bendPointsYear: 2026 });
     expect(areScenariosComparable(a, b)).toBe(false);
+  });
+
+  it('is false when live inflation has drifted from the frozen colaRate', () => {
+    const a = createScenario({ inflation: 0.025 }, { bendPointsYear: 2026 });
+    const drifted = scenarioReducer(a, { type: 'SET_FIELD', field: 'inflation', value: 0.04 });
+    const b = createScenario({ inflation: 0.025 }, { bendPointsYear: 2026 });
+    expect(areScenariosComparable(drifted, b)).toBe(false);
   });
 
   it('is false when bend point years differ', () => {

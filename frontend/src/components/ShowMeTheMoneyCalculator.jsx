@@ -21,10 +21,18 @@ import {
     deserializeScenario,
     PROVENANCE,
     hasThirtyFiveNonZeroYears,
-    planLabel
+    planLabel,
+    effectivePia
 } from '../calculators/showMeTheMoney/scenario';
-import { fetchEarnings, fetchWorkStopLadder } from '../services/earningsService';
+import { fetchEarnings, fetchWorkStopLadder, calculatePiaFromEarnings, readDevEarnings } from '../services/earningsService';
+import { describeEarningsVintage } from '../utils/earningsVintage';
 import { getAuthToken } from '../config/supabase';
+
+const birthYearFromDob = (dob) => {
+    if (!dob) return null;
+    const year = new Date(dob).getFullYear();
+    return Number.isNaN(year) ? null : year;
+};
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin, SankeyController, Flow, BubbleController);
 
@@ -1788,9 +1796,9 @@ const ShowMeTheMoneyCalculator = () => {
 
         (async () => {
             const token = await getAuthToken();
-            if (!token || cancelled) return;
+            if (cancelled) return;
             try {
-                const records = await fetchEarnings(token);
+                const records = token ? await fetchEarnings(token) : readDevEarnings();
                 if (cancelled) return;
                 if (records.spouse1) dispatch({ type: 'SET_EARNINGS', person: 'spouse1', record: records.spouse1 });
                 if (records.spouse2) dispatch({ type: 'SET_EARNINGS', person: 'spouse2', record: records.spouse2 });
@@ -1805,23 +1813,62 @@ const ShowMeTheMoneyCalculator = () => {
     // Work-stop ladder is derived display data computed from the verified
     // earnings record — it is not a scenario input, so it stays in useState
     // rather than the scenario reducer.
-    const [workStopLadder, setWorkStopLadder] = useState(null);
+    const [workStopLadders, setWorkStopLadders] = useState({ spouse1: null, spouse2: null });
 
     useEffect(() => {
-        const record = scenario.earnings.spouse1;
-        if (!record) { setWorkStopLadder(null); return; }
-
         let cancelled = false;
-        fetchWorkStopLadder({
-            birthYear: record.birthYear,
-            rows: record.rows,
-            stopAges: [62, 65, 67, 70]
-        })
-            .then((rungs) => { if (!cancelled) setWorkStopLadder(rungs); })
-            .catch((error) => console.error('Could not compute work-stop ladder:', error));
+
+        (async () => {
+            const next = { spouse1: null, spouse2: null };
+            for (const person of ['spouse1', 'spouse2']) {
+                const record = scenario.earnings[person];
+                if (!record) continue;
+                const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+                const birthYear = birthYearFromDob(dob) ?? record.birthYear;
+                try {
+                    next[person] = await fetchWorkStopLadder({
+                        birthYear,
+                        rows: record.rows,
+                        stopAges: [62, 65, 67, 70]
+                    });
+                } catch (error) {
+                    console.error(`Could not compute work-stop ladder for ${person}:`, error);
+                }
+            }
+            if (!cancelled) setWorkStopLadders(next);
+        })();
 
         return () => { cancelled = true; };
-    }, [scenario.earnings.spouse1]);
+    }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
+
+    // Earnings-derived PIA from banked rows only. Profile DOB wins over the
+    // year stored on the earnings record.
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            for (const person of ['spouse1', 'spouse2']) {
+                const record = scenario.earnings[person];
+                if (!record) continue;
+                const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+                const birthYear = birthYearFromDob(dob) ?? record.birthYear;
+                if (!birthYear) continue;
+                try {
+                    const result = await calculatePiaFromEarnings({
+                        birthYear,
+                        rows: record.rows
+                    });
+                    if (!cancelled) {
+                        dispatch({ type: 'SET_DERIVED_PIA', person, pia: result.pia });
+                    }
+                } catch (error) {
+                    console.error(`Could not derive PIA from earnings for ${person}:`, error);
+                }
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
 
     // Track if we've loaded initial persisted state to prevent infinite loop
     const hasLoadedPersistedState = useRef(false);
@@ -1979,6 +2026,48 @@ const ShowMeTheMoneyCalculator = () => {
             ? 'your Social Security earnings record'
             : `${spouseFirstName}'s Social Security earnings record`;
 
+    const usingEarningsForChart = (
+        (hasSpouse1Earnings && scenario.piaSource.spouse1 === 'earnings' && scenario.derivedPia.spouse1 != null) ||
+        (hasSpouse2Earnings && scenario.piaSource.spouse2 === 'earnings' && scenario.derivedPia.spouse2 != null)
+    );
+
+    const vintageNotes = ['spouse1', 'spouse2']
+        .filter((person) => scenario.earnings[person])
+        .map((person) => ({
+            person,
+            ...describeEarningsVintage({
+                statementDate: scenario.earnings[person].statementDate,
+                rows: scenario.earnings[person].rows
+            })
+        }))
+        .filter((note) => note.message);
+
+    const birthYearConflicts = ['spouse1', 'spouse2']
+        .filter((person) => {
+            const record = scenario.earnings[person];
+            const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+            const profileYear = birthYearFromDob(dob);
+            return record && profileYear && record.birthYear && record.birthYear !== profileYear;
+        })
+        .map((person) => {
+            const record = scenario.earnings[person];
+            const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+            const who = person === 'spouse1' ? primaryFirstName : spouseFirstName;
+            return {
+                person,
+                message: `${who}'s earnings file says birth year ${record.birthYear}, but the profile uses ${birthYearFromDob(dob)}. We are using the profile date of birth for the PIA.`
+            };
+        });
+
+    const ladderPeople = [
+        hasSpouse1Earnings && workStopLadders.spouse1?.length
+            ? { person: 'spouse1', label: primaryFirstName, rungs: workStopLadders.spouse1, record: scenario.earnings.spouse1 }
+            : null,
+        hasSpouse2Earnings && workStopLadders.spouse2?.length
+            ? { person: 'spouse2', label: spouseFirstName, rungs: workStopLadders.spouse2, record: scenario.earnings.spouse2 }
+            : null
+    ].filter(Boolean);
+
     const [chartView, setChartView] = useState('monthly'); // monthly, cumulative, combined, earlyLate, post70, sscuts
     const [chartData, setChartData] = useState({ labels: [], datasets: [] });
     const [chartOptions, setChartOptions] = useState({});
@@ -2050,23 +2139,26 @@ const ShowMeTheMoneyCalculator = () => {
         return `${years}y ${months}m`;
     };
 
+    const chartSpouse1Pia = effectivePia(scenario, 'spouse1');
+    const chartSpouse2Pia = effectivePia(scenario, 'spouse2');
+
     const scenarioData = useMemo(() => {
         const primaryAge62 = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 62,
             filingMonth: 0,
             inflationRate: inflation
         });
         const primaryPreferred = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: spouse1PreferredYear,
             filingMonth: spouse1PreferredMonth,
             inflationRate: inflation
         });
         const primaryAge70 = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 70,
             filingMonth: 0,
@@ -2096,21 +2188,21 @@ const ShowMeTheMoneyCalculator = () => {
 
         if (isMarried) {
             const spouseAge62 = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 62,
                 filingMonth: 0,
                 inflationRate: inflation
             });
             const spousePreferredScenario = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: spouse2PreferredYear,
                 filingMonth: spouse2PreferredMonth,
                 inflationRate: inflation
             });
             const spouseAge70 = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 70,
                 filingMonth: 0,
@@ -2131,7 +2223,7 @@ const ShowMeTheMoneyCalculator = () => {
 
         }
 
-        const primaryIsLowerPia = !isMarried || spouse1Pia <= spouse2Pia;
+        const primaryIsLowerPia = !isMarried || chartSpouse1Pia <= chartSpouse2Pia;
 
         let earlyLateProjection = primaryProjections.age62;
         let preferredLateProjection = primaryProjections.preferred;
@@ -2175,7 +2267,7 @@ const ShowMeTheMoneyCalculator = () => {
             primaryYears,
             spouseYears
         };
-    }, [isMarried, spouse1Dob, spouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, spouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge]);
+    }, [isMarried, spouse1Dob, chartSpouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, chartSpouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge]);
 
     // Bubble Chart Data - Calculate 4% Rule Equivalents at selected age
     const bubbleChartData = useMemo(() => {
@@ -3778,31 +3870,81 @@ const ShowMeTheMoneyCalculator = () => {
                 <div className="px-4 pt-4">
                     {scenario.provenance === PROVENANCE.ESTIMATED ? null : (
                         <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 mb-4">
-                            {/* Claims only what is true today: the record is on file and
-                                drives the work-stop comparison. It does NOT yet feed the
-                                PIA behind the chart -- those figures still come from the
-                                entered PIA -- so the old "your plan is now based on your
-                                actual earnings history" copy was false. */}
                             <div className="font-semibold text-emerald-900">Earnings Record On File</div>
                             <p className="text-sm text-emerald-800 mt-1">
                                 We have {earningsRecordPhrase} saved
-                                {workStopLadder && workStopLadder.length > 0
+                                {(workStopLadders.spouse1 || workStopLadders.spouse2)
                                     ? ', and the work-stop comparison below is calculated from it'
                                     : ''}.
-                                The benefit amounts in {planLabel(scenario)} still come from the PIA
-                                entered in your profile — we have not recalculated them from the
-                                earnings record yet.
+                                {usingEarningsForChart ? (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} come from that
+                                        record, using only years already on file (not assumed future earnings).
+                                    </>
+                                ) : (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} currently use the
+                                        PIA you entered.
+                                    </>
+                                )}
                             </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                {hasSpouse1Earnings && (
+                                    <button
+                                        type="button"
+                                        onClick={() => dispatch({
+                                            type: 'SET_PIA_SOURCE',
+                                            person: 'spouse1',
+                                            source: scenario.piaSource.spouse1 === 'earnings' ? 'profile' : 'earnings'
+                                        })}
+                                        className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                                    >
+                                        {scenario.piaSource.spouse1 === 'earnings'
+                                            ? `Use ${primaryFirstName}'s entered PIA`
+                                            : `Use ${primaryFirstName}'s earnings-based PIA`}
+                                    </button>
+                                )}
+                                {hasSpouse2Earnings && (
+                                    <button
+                                        type="button"
+                                        onClick={() => dispatch({
+                                            type: 'SET_PIA_SOURCE',
+                                            person: 'spouse2',
+                                            source: scenario.piaSource.spouse2 === 'earnings' ? 'profile' : 'earnings'
+                                        })}
+                                        className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                                    >
+                                        {scenario.piaSource.spouse2 === 'earnings'
+                                            ? `Use ${spouseFirstName}'s entered PIA`
+                                            : `Use ${spouseFirstName}'s earnings-based PIA`}
+                                    </button>
+                                )}
+                            </div>
+                            {vintageNotes.map((note) => (
+                                <p key={note.kind + note.person} className="text-sm text-amber-800 mt-2">
+                                    {note.message}
+                                </p>
+                            ))}
+                            {birthYearConflicts.map((note) => (
+                                <p key={note.person} className="text-sm text-amber-800 mt-2">
+                                    {note.message}
+                                </p>
+                            ))}
                         </div>
                     )}
 
-                    {workStopLadder && workStopLadder.length > 0 && (
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 mb-4">
-                            <div className="font-semibold text-slate-900 mb-2">What if you stop working at…</div>
+                    {ladderPeople.map(({ person, label, rungs, record }) => (
+                        <div key={person} className="rounded-lg border border-slate-200 bg-white px-4 py-3 mb-4">
+                            <div className="font-semibold text-slate-900 mb-1">
+                                What if {label} stop working at…
+                            </div>
+                            <p className="text-xs text-slate-500 mb-2">
+                                These figures are the PIA if work stops at that age — not the benefit if you file then.
+                            </p>
                             <div className="grid grid-cols-4 gap-3">
-                                {workStopLadder.map((rung) => (
+                                {rungs.map((rung) => (
                                     <div key={rung.stopAge} className="text-center">
-                                        <div className="text-xs uppercase tracking-wide text-slate-500">Age {rung.stopAge}</div>
+                                        <div className="text-xs uppercase tracking-wide text-slate-500">Stop at {rung.stopAge}</div>
                                         <div className="text-lg font-semibold text-slate-900">
                                             ${Math.round(rung.pia).toLocaleString()}
                                         </div>
@@ -3810,21 +3952,16 @@ const ShowMeTheMoneyCalculator = () => {
                                     </div>
                                 ))}
                             </div>
-                            {/* Only claim "35 strong years" when the record proves it.
-                                Equal PIAs alone do not: someone with 15 zero years in
-                                their top 35 can produce a flat ladder, and telling them
-                                working longer barely matters is the opposite of the truth.
-                                If the record cannot settle it, say nothing. */}
-                            {workStopLadder.length > 1 &&
-                                workStopLadder[0].pia === workStopLadder[workStopLadder.length - 1].pia &&
-                                hasThirtyFiveNonZeroYears(scenario.earnings.spouse1) && (
+                            {rungs.length > 1 &&
+                                rungs[0].pia === rungs[rungs.length - 1].pia &&
+                                hasThirtyFiveNonZeroYears(record) && (
                                 <p className="text-sm text-emerald-700 mt-3">
-                                    Good news — you already have 35 strong earnings years. Working longer has
-                                    very little effect on your Social Security calculation.
+                                    Good news — {label} already has 35 strong earnings years. Working longer
+                                    has very little effect on this Social Security calculation.
                                 </p>
                             )}
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 {/* Chart Container */}
@@ -4198,8 +4335,8 @@ const ShowMeTheMoneyCalculator = () => {
                                         spouseLabel={spouseFirstName}
                                         spouse1Dob={spouse1Dob}
                                         spouse2Dob={spouse2Dob}
-                                        spouse1Pia={spouse1Pia}
-                                        spouse2Pia={spouse2Pia}
+                                        spouse1Pia={chartSpouse1Pia}
+                                        spouse2Pia={chartSpouse2Pia}
                                         spouse1PreferredYear={spouse1PreferredYear}
                                         spouse2PreferredYear={spouse2PreferredYear}
                                         inflation={inflation}
@@ -4535,9 +4672,9 @@ const ShowMeTheMoneyCalculator = () => {
                                         }
                                         return getHouseholdBucket({
                                             filingAge,
-                                            spouse1Pia,
+                                            spouse1Pia: chartSpouse1Pia,
                                             spouse1Dob,
-                                            spouse2Pia,
+                                            spouse2Pia: chartSpouse2Pia,
                                             spouse2Dob,
                                             inflation,
                                             prematureDeath,
@@ -5061,11 +5198,11 @@ const ShowMeTheMoneyCalculator = () => {
             <OneMonthAtATimeModal
                 isOpen={showOneMonthModal}
                 onClose={() => setShowOneMonthModal(false)}
-                pia={spouse1Pia || 3571}
+                pia={chartSpouse1Pia || 3571}
                 dob={spouse1Dob}
                 inflationRate={inflation}
                 isMarried={isMarried}
-                spousePia={(isMarried && spouse2Pia) || 2857}
+                spousePia={(isMarried && chartSpouse2Pia) || 2857}
                 spouseDob={spouse2Dob}
             />
         </div >

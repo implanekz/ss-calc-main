@@ -274,6 +274,47 @@ def export_as_json(earnings: List[EarningsRecord], result: Dict, filename: str):
     print(f"✓ Exported to {filename}")
 
 
+def export_as_xml(
+    earnings: List[EarningsRecord],
+    filename: str,
+    birth_year: int,
+    estimated_pia: float,
+    statement_date: str,
+    name: str = "Sample Earner",
+    ssn: str = "000-00-0000",
+):
+    """Write a pro forma SSA statement the existing parser already accepts."""
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        "<SSAStatement>",
+        f"    <StatementDate>{statement_date}</StatementDate>",
+        "    <PersonInfo>",
+        f"        <Name>{name}</Name>",
+        f"        <SSN>{ssn}</SSN>",
+        f"        <BirthDate>{birth_year}-06-15</BirthDate>",
+        f"        <EstimatedPIA>{int(round(estimated_pia))}</EstimatedPIA>",
+        "    </PersonInfo>",
+        "    <EarningsHistory>",
+    ]
+    for record in earnings:
+        if record.is_projected:
+            continue
+        lines.extend([
+            "        <EarningsRecord>",
+            f"            <Year>{record.year}</Year>",
+            f"            <Earnings>{int(round(record.earnings))}</Earnings>",
+            "        </EarningsRecord>",
+        ])
+    lines.extend([
+        "    </EarningsHistory>",
+        "</SSAStatement>",
+        "",
+    ])
+    with open(filename, "w") as f:
+        f.write("\n".join(lines))
+    print(f"✓ Exported XML to {filename}")
+
+
 def export_as_csv(earnings: List[EarningsRecord], filename: str):
     """Export earnings history as CSV for spreadsheet use."""
     import csv
@@ -331,6 +372,23 @@ if __name__ == "__main__":
         type=str,
         help='Export to CSV file (e.g., earnings_2500.csv)'
     )
+    parser.add_argument(
+        '--export-xml',
+        type=str,
+        help='Export a pro forma SSA XML file the app can upload'
+    )
+    parser.add_argument(
+        '--statement-date',
+        type=str,
+        default=None,
+        help='StatementDate for XML export (YYYY-MM-DD). Default: today.'
+    )
+    parser.add_argument(
+        '--name',
+        type=str,
+        default='Sample Earner',
+        help='Name written into the XML PersonInfo block'
+    )
 
     args = parser.parse_args()
 
@@ -352,6 +410,17 @@ if __name__ == "__main__":
 
     if args.export_csv:
         export_as_csv(earnings, args.export_csv)
+
+    if args.export_xml:
+        from datetime import date as date_cls
+        export_as_xml(
+            earnings,
+            args.export_xml,
+            birth_year=args.birth_year,
+            estimated_pia=result["pia"],
+            statement_date=args.statement_date or date_cls.today().isoformat(),
+            name=args.name,
+        )
 
     print("\n✓ Pro forma earnings profile generated successfully!")
     print(f"\nTo use this profile in your app:")

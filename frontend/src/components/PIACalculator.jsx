@@ -5,8 +5,9 @@ import { useUser } from '../contexts/UserContext';
 import { useCalculatorPersistence } from '../hooks/useCalculatorPersistence';
 import { Tabs, TabList, Tab } from './ui/Tabs';
 import { API_BASE_URL } from '../config/api';
-import { saveEarnings } from '../services/earningsService';
+import { saveEarnings, stashDevEarnings } from '../services/earningsService';
 import { getAuthToken } from '../config/supabase';
+import { countZerosInTop35 } from '../utils/top35Zeros';
 
 const PIACalculator = () => {
     // Get user context for names and marital status
@@ -411,12 +412,22 @@ const PIACalculator = () => {
             // `birthYear` closure variable won't reflect this update until the next
             // render. Anything persisted later in this function must use this value.
             let resolvedBirthYear = birthYear;
+            const profileBirthYear = profile?.date_of_birth
+                ? new Date(profile.date_of_birth).getFullYear()
+                : null;
             if (result.person_info?.birth_date) {
                 const birthDate = new Date(result.person_info.birth_date);
                 const year = birthDate.getFullYear();
                 if (year >= 1937 && year <= 2010) {
-                    setBirthYear(year);
-                    resolvedBirthYear = year;
+                    if (profileBirthYear && profileBirthYear !== year) {
+                        setError(
+                            `This file says birth year ${year}, but the profile uses ${profileBirthYear}. We are keeping the profile date of birth for the PIA.`
+                        );
+                        resolvedBirthYear = profileBirthYear;
+                    } else {
+                        setBirthYear(year);
+                        resolvedBirthYear = year;
+                    }
                 }
             }
             // If no birth date in XML, try to infer from earnings years
@@ -452,16 +463,19 @@ const PIACalculator = () => {
                 // Persist so the record survives reload and is visible to Show Me The Money.
                 // A failure here must not block the upload the user just completed.
                 try {
+                    const recordToSave = {
+                        birthYear: resolvedBirthYear,
+                        statementDate: result.person_info?.statement_date || null,
+                        rows: mappedEarnings.map((row) => ({
+                            year: row.year,
+                            earnings: row.earnings,
+                            isProjected: row.is_projected
+                        }))
+                    };
+                    stashDevEarnings(isPrimary ? 'spouse1' : 'spouse2', recordToSave);
                     const token = await getAuthToken();
                     if (token) {
-                        await saveEarnings(token, isPrimary ? 'spouse1' : 'spouse2', {
-                            birthYear: resolvedBirthYear,
-                            rows: mappedEarnings.map((row) => ({
-                                year: row.year,
-                                earnings: row.earnings,
-                                isProjected: row.is_projected
-                            }))
-                        });
+                        await saveEarnings(token, isPrimary ? 'spouse1' : 'spouse2', recordToSave);
                     }
                 } catch (persistError) {
                     console.error('Could not save earnings record:', persistError);
@@ -484,10 +498,13 @@ const PIACalculator = () => {
             // assumptions, not banked earnings, and must not be counted as either
             // earnings years or zero years in the actual record)
             const actualEarnings = result.spreadsheet_data.filter(e => !e.is_projected);
-            const sortedEarnings = [...actualEarnings]
-                .sort((a, b) => (b.earnings || 0) - (a.earnings || 0))
-                .slice(0, 35);
-            const zeroCount = sortedEarnings.filter(e => (e.earnings || 0) === 0).length;
+            const zeroCount = countZerosInTop35(
+                actualEarnings.map((row) => ({
+                    year: row.year,
+                    earnings: row.earnings,
+                    isProjected: Boolean(row.is_projected)
+                }))
+            );
 
             setXmlUploadSuccess(
                 `✅ Loaded ${file.name} • ${result.earnings_summary?.total_years || 0} years • ${zeroCount} zeros in top-35`
@@ -846,6 +863,13 @@ const PIACalculator = () => {
                                 ? `Based on ${calculatedResult.top_35_years.length} years`
                                 : 'Calculate below'}
                         </div>
+                        {calculatedResult && earningsHistory.some((row) => row.is_projected) && (
+                            <div className="text-xs text-emerald-800 mt-2">
+                                Includes assumed earnings through {Math.max(
+                                    ...earningsHistory.filter((row) => row.is_projected).map((row) => row.year)
+                                )}.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -904,7 +928,7 @@ const PIACalculator = () => {
                         <span className="font-semibold text-blue-700">{nonZeroYears}</span> years with earnings
                     </div>
                     <div className="px-3 py-2 bg-amber-50 rounded-md">
-                        <span className="font-semibold text-amber-700">{Math.max(0, 35 - nonZeroYears)}</span> zero years in top 35
+                        <span className="font-semibold text-amber-700">{countZerosInTop35(earningsHistory)}</span> zero years in top 35
                     </div>
                 </div>
 
