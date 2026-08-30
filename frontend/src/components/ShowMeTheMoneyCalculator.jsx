@@ -26,6 +26,7 @@ import {
 } from '../calculators/showMeTheMoney/scenario';
 import { fetchEarnings, fetchWorkStopLadder, calculatePiaFromEarnings, readDevEarnings } from '../services/earningsService';
 import { describeEarningsVintage } from '../utils/earningsVintage';
+import { readWorkshopPia, disableWorkshopPia } from '../utils/workshopPia';
 import { getAuthToken } from '../config/supabase';
 
 const birthYearFromDob = (dob) => {
@@ -1802,6 +1803,19 @@ const ShowMeTheMoneyCalculator = () => {
                 if (cancelled) return;
                 if (records.spouse1) dispatch({ type: 'SET_EARNINGS', person: 'spouse1', record: records.spouse1 });
                 if (records.spouse2) dispatch({ type: 'SET_EARNINGS', person: 'spouse2', record: records.spouse2 });
+                const workshop = readWorkshopPia();
+                for (const person of ['spouse1', 'spouse2']) {
+                    const adopted = workshop[person];
+                    if (adopted?.enabled && adopted.pia != null) {
+                        dispatch({
+                            type: 'SET_WORKSHOP_PIA',
+                            person,
+                            pia: adopted.pia,
+                            throughYear: adopted.throughYear,
+                            enabled: true
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('Could not load earnings records:', error);
             }
@@ -2030,6 +2044,14 @@ const ShowMeTheMoneyCalculator = () => {
         (hasSpouse1Earnings && scenario.piaSource.spouse1 === 'earnings' && scenario.derivedPia.spouse1 != null) ||
         (hasSpouse2Earnings && scenario.piaSource.spouse2 === 'earnings' && scenario.derivedPia.spouse2 != null)
     );
+    const usingWorkshopForChart = (
+        (scenario.piaSource.spouse1 === 'workshop' && scenario.workshopPia.spouse1 != null) ||
+        (scenario.piaSource.spouse2 === 'workshop' && scenario.workshopPia.spouse2 != null)
+    );
+    const workshopThroughYear = ['spouse1', 'spouse2']
+        .map((person) => scenario.piaSource[person] === 'workshop' ? scenario.workshopMeta[person]?.throughYear : null)
+        .find((year) => year != null);
+    const showPiaSourceBanner = scenario.provenance !== PROVENANCE.ESTIMATED || usingWorkshopForChart;
 
     const vintageNotes = ['spouse1', 'spouse2']
         .filter((person) => scenario.earnings[person])
@@ -3868,15 +3890,27 @@ const ShowMeTheMoneyCalculator = () => {
 
                 {/* Earnings Provenance Banner */}
                 <div className="px-4 pt-4">
-                    {scenario.provenance === PROVENANCE.ESTIMATED ? null : (
+                    {!showPiaSourceBanner ? null : (
                         <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 mb-4">
-                            <div className="font-semibold text-emerald-900">Earnings Record On File</div>
+                            <div className="font-semibold text-emerald-900">
+                                {usingWorkshopForChart ? 'Calculated PIA On The Chart' : 'Earnings Record On File'}
+                            </div>
                             <p className="text-sm text-emerald-800 mt-1">
-                                We have {earningsRecordPhrase} saved
-                                {(workStopLadders.spouse1 || workStopLadders.spouse2)
-                                    ? ', and the work-stop comparison below is calculated from it'
-                                    : ''}.
-                                {usingEarningsForChart ? (
+                                {scenario.provenance !== PROVENANCE.ESTIMATED && (
+                                    <>
+                                        We have {earningsRecordPhrase} saved
+                                        {(workStopLadders.spouse1 || workStopLadders.spouse2)
+                                            ? ', and the work-stop comparison below is calculated from it'
+                                            : ''}.
+                                    </>
+                                )}
+                                {usingWorkshopForChart ? (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} use the PIA you
+                                        calculated in the PIA Calculator, including the future years you set
+                                        {workshopThroughYear != null ? ` (through ${workshopThroughYear})` : ''}.
+                                    </>
+                                ) : usingEarningsForChart ? (
                                     <>
                                         {' '}The benefit amounts in {planLabel(scenario)} come from that
                                         record, using only years already on file (not assumed future earnings).
@@ -3889,34 +3923,40 @@ const ShowMeTheMoneyCalculator = () => {
                                 )}
                             </p>
                             <div className="flex flex-wrap gap-2 mt-3">
-                                {hasSpouse1Earnings && (
+                                {(hasSpouse1Earnings || scenario.piaSource.spouse1 === 'workshop') && (
                                     <button
                                         type="button"
-                                        onClick={() => dispatch({
-                                            type: 'SET_PIA_SOURCE',
-                                            person: 'spouse1',
-                                            source: scenario.piaSource.spouse1 === 'earnings' ? 'profile' : 'earnings'
-                                        })}
+                                        onClick={() => {
+                                            if (scenario.piaSource.spouse1 === 'profile') {
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'earnings' });
+                                            } else {
+                                                disableWorkshopPia('spouse1');
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'profile' });
+                                            }
+                                        }}
                                         className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
                                     >
-                                        {scenario.piaSource.spouse1 === 'earnings'
-                                            ? `Use ${primaryFirstName}'s entered PIA`
-                                            : `Use ${primaryFirstName}'s earnings-based PIA`}
+                                        {scenario.piaSource.spouse1 === 'profile'
+                                            ? `Use ${primaryFirstName}'s earnings-based PIA`
+                                            : `Use ${primaryFirstName}'s entered PIA`}
                                     </button>
                                 )}
-                                {hasSpouse2Earnings && (
+                                {(hasSpouse2Earnings || scenario.piaSource.spouse2 === 'workshop') && (
                                     <button
                                         type="button"
-                                        onClick={() => dispatch({
-                                            type: 'SET_PIA_SOURCE',
-                                            person: 'spouse2',
-                                            source: scenario.piaSource.spouse2 === 'earnings' ? 'profile' : 'earnings'
-                                        })}
+                                        onClick={() => {
+                                            if (scenario.piaSource.spouse2 === 'profile') {
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse2', source: 'earnings' });
+                                            } else {
+                                                disableWorkshopPia('spouse2');
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse2', source: 'profile' });
+                                            }
+                                        }}
                                         className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
                                     >
-                                        {scenario.piaSource.spouse2 === 'earnings'
-                                            ? `Use ${spouseFirstName}'s entered PIA`
-                                            : `Use ${spouseFirstName}'s earnings-based PIA`}
+                                        {scenario.piaSource.spouse2 === 'profile'
+                                            ? `Use ${spouseFirstName}'s earnings-based PIA`
+                                            : `Use ${spouseFirstName}'s entered PIA`}
                                     </button>
                                 )}
                             </div>

@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../config/api';
 import { saveEarnings, stashDevEarnings } from '../services/earningsService';
 import { getAuthToken } from '../config/supabase';
 import { countZerosInTop35 } from '../utils/top35Zeros';
+import { readWorkshopPia, stashWorkshopPia, projectedThroughYear } from '../utils/workshopPia';
 
 const PIACalculator = () => {
     // Get user context for names and marital status
@@ -51,6 +52,9 @@ const PIACalculator = () => {
     const [primaryWhatIfEarnings, setPrimaryWhatIfEarnings] = useState([]);
     const [, setPrimaryUploadedFileName] = useState(null);
     const [, setPrimaryUploadedFileHash] = useState(null);
+    const [primaryAdoptChartPia, setPrimaryAdoptChartPia] = useState(
+        () => Boolean(readWorkshopPia().spouse1?.enabled)
+    );
 
     // SPOUSE State management - use partner DOB if available
     const getInitialSpouseBirthYear = () => {
@@ -79,6 +83,10 @@ const PIACalculator = () => {
     const [spouseWhatIfEarnings, setSpouseWhatIfEarnings] = useState([]);
     const [, setSpouseUploadedFileName] = useState(null);
     const [, setSpouseUploadedFileHash] = useState(null);
+    const [spouseAdoptChartPia, setSpouseAdoptChartPia] = useState(
+        () => Boolean(readWorkshopPia().spouse2?.enabled)
+    );
+    const [showAdoptTip, setShowAdoptTip] = useState(false);
 
     // Helper: Get person-specific state based on active tab
     const isPrimary = activeTab === 'primary';
@@ -113,6 +121,8 @@ const PIACalculator = () => {
     const setWhatIfEarnings = isPrimary ? setPrimaryWhatIfEarnings : setSpouseWhatIfEarnings;
     const setUploadedFileName = isPrimary ? setPrimaryUploadedFileName : setSpouseUploadedFileName;
     const setUploadedFileHash = isPrimary ? setPrimaryUploadedFileHash : setSpouseUploadedFileHash;
+    const adoptChartPia = isPrimary ? primaryAdoptChartPia : spouseAdoptChartPia;
+    const setAdoptChartPia = isPrimary ? setPrimaryAdoptChartPia : setSpouseAdoptChartPia;
 
     // Get tab labels from user context
     const pFirst = profile?.firstName || profile?.first_name;
@@ -229,6 +239,13 @@ const PIACalculator = () => {
             console.log('PIA calculation result:', result);
             setCalculatedResult(result);
             setUseCalculatedPIA(true); // Auto-switch to calculated PIA
+            if (adoptChartPia) {
+                stashWorkshopPia(isPrimary ? 'spouse1' : 'spouse2', {
+                    pia: result.pia,
+                    throughYear: projectedThroughYear(sourceEarnings),
+                    enabled: true
+                });
+            }
         } catch (err) {
             setError(err.message);
             console.error('PIA calculation error:', err);
@@ -582,6 +599,16 @@ const PIACalculator = () => {
         }).format(value);
     };
 
+    const handleAdoptChartPia = (checked) => {
+        setAdoptChartPia(checked);
+        if (!calculatedResult) return;
+        stashWorkshopPia(isPrimary ? 'spouse1' : 'spouse2', {
+            pia: calculatedResult.pia,
+            throughYear: projectedThroughYear(earningsHistory),
+            enabled: checked
+        });
+    };
+
     // Count non-zero years (exclude projected/future years — those are
     // assumptions carried forward for planning, not years the user actually
     // has earnings on record)
@@ -887,6 +914,52 @@ const PIACalculator = () => {
                         <div className="mt-1 text-xs text-gray-600">
                             Lifetime impact (25 years): {formatCurrency((calculatedResult.pia - ssaPIA) * 12 * 25)}
                         </div>
+                    </div>
+                )}
+
+                {calculatedResult && (
+                    <div className="mt-4 p-4 bg-white border-2 border-emerald-400 rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <input
+                                id="adopt-workshop-pia"
+                                type="checkbox"
+                                checked={adoptChartPia}
+                                onChange={(e) => handleAdoptChartPia(e.target.checked)}
+                                className="mt-1 h-5 w-5 text-emerald-600 border-gray-400 rounded focus:ring-emerald-500"
+                            />
+                            <div className="flex-1">
+                                <label htmlFor="adopt-workshop-pia" className="block font-bold text-gray-900 cursor-pointer">
+                                    Use this PIA on Show Me The Money
+                                </label>
+                                <p className="text-sm text-gray-700 mt-1">
+                                    {formatCurrency(calculatedResult.pia)}/month
+                                    {projectedThroughYear(earningsHistory) != null
+                                        ? ` · assumes earnings through ${projectedThroughYear(earningsHistory)}`
+                                        : ''}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdoptTip((open) => !open)}
+                                aria-expanded={showAdoptTip}
+                                aria-controls="adopt-workshop-pia-tip"
+                                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold"
+                                title="Why this matters"
+                            >
+                                i
+                            </button>
+                        </div>
+                        {showAdoptTip && (
+                            <div
+                                id="adopt-workshop-pia-tip"
+                                className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-gray-800 space-y-3"
+                            >
+                                <p className="font-semibold text-gray-900">{tooltips.pia.adoptChartPia.title}</p>
+                                {tooltips.pia.adoptChartPia.paragraphs.map((paragraph) => (
+                                    <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

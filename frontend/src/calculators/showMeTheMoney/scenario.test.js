@@ -165,6 +165,7 @@ describe('serialization', () => {
     const payload = serializeScenario(s);
     expect(payload.earnings).toBeUndefined();
     expect(payload.provenance).toBeUndefined();
+    expect(payload.workshopPia).toBeUndefined();
     expect(JSON.stringify(payload)).not.toContain('100000');
   });
 
@@ -251,6 +252,54 @@ describe('effectivePia', () => {
     s = scenarioReducer(s, { type: 'SET_DERIVED_PIA', person: 'spouse1', pia: 3414.93 });
     s = scenarioReducer(s, { type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'profile' });
     expect(effectivePia(s, 'spouse1')).toBe(2800);
+  });
+
+  it('uses the PIA Calculator workshop number when adopted', () => {
+    let s = createScenario({ spouse1Pia: 2500 });
+    s = scenarioReducer(s, { type: 'SET_EARNINGS', person: 'spouse1', record: { birthYear: 1966, rows: [] } });
+    s = scenarioReducer(s, { type: 'SET_DERIVED_PIA', person: 'spouse1', pia: 3182 });
+    s = scenarioReducer(s, {
+      type: 'SET_WORKSHOP_PIA',
+      person: 'spouse1',
+      pia: 2140,
+      throughYear: 2025,
+      enabled: true
+    });
+    expect(s.spouse1Pia).toBe(2500);
+    expect(s.piaSource.spouse1).toBe('workshop');
+    expect(effectivePia(s, 'spouse1')).toBe(2140);
+  });
+
+  it('returns to the typed PIA when the workshop adoption is cleared', () => {
+    let s = createScenario({ spouse1Pia: 2500 });
+    s = scenarioReducer(s, {
+      type: 'SET_WORKSHOP_PIA',
+      person: 'spouse1',
+      pia: 2140,
+      throughYear: 2025,
+      enabled: true
+    });
+    s = scenarioReducer(s, { type: 'SET_WORKSHOP_PIA', person: 'spouse1', enabled: false });
+    expect(s.piaSource.spouse1).toBe('profile');
+    expect(s.workshopPia.spouse1).toBeNull();
+    expect(effectivePia(s, 'spouse1')).toBe(2500);
+  });
+
+  it('does not let a later earnings fetch steal the workshop source', () => {
+    let s = createScenario({ spouse1Pia: 2500 });
+    s = scenarioReducer(s, {
+      type: 'SET_WORKSHOP_PIA',
+      person: 'spouse1',
+      pia: 2140,
+      enabled: true
+    });
+    s = scenarioReducer(s, {
+      type: 'SET_EARNINGS',
+      person: 'spouse1',
+      record: { birthYear: 1966, rows: [] }
+    });
+    expect(s.piaSource.spouse1).toBe('workshop');
+    expect(effectivePia(s, 'spouse1')).toBe(2140);
   });
 });
 

@@ -61,6 +61,8 @@ export const createScenario = (overrides = {}, assumptions = {}) => {
     provenance: PROVENANCE.ESTIMATED,
     earnings: { spouse1: null, spouse2: null },
     derivedPia: { spouse1: null, spouse2: null },
+    workshopPia: { spouse1: null, spouse2: null },
+    workshopMeta: { spouse1: null, spouse2: null },
     piaSource: { spouse1: 'profile', spouse2: 'profile' },
     assumptions: {
       // Frozen at creation so a saved plan keeps reporting the tables it was
@@ -85,13 +87,15 @@ export const scenarioReducer = (state, action) => {
       if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
       const earnings = { ...state.earnings, [action.person]: action.record ?? null };
       const hasRecord = Boolean(action.record);
+      const keepWorkshop = hasRecord && state.piaSource[action.person] === 'workshop'
+        && state.workshopPia[action.person] != null;
       return {
         ...state,
         earnings,
         provenance: deriveProvenance(earnings),
         piaSource: {
           ...state.piaSource,
-          [action.person]: hasRecord ? 'earnings' : 'profile'
+          [action.person]: keepWorkshop ? 'workshop' : (hasRecord ? 'earnings' : 'profile')
         },
         derivedPia: hasRecord
           ? state.derivedPia
@@ -106,9 +110,33 @@ export const scenarioReducer = (state, action) => {
         derivedPia: { ...state.derivedPia, [action.person]: action.pia }
       };
     }
+    case 'SET_WORKSHOP_PIA': {
+      if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
+      if (!action.enabled) {
+        return {
+          ...state,
+          workshopPia: { ...state.workshopPia, [action.person]: null },
+          workshopMeta: { ...state.workshopMeta, [action.person]: null },
+          piaSource: { ...state.piaSource, [action.person]: 'profile' }
+        };
+      }
+      if (action.pia == null) return state;
+      return {
+        ...state,
+        workshopPia: { ...state.workshopPia, [action.person]: action.pia },
+        workshopMeta: {
+          ...state.workshopMeta,
+          [action.person]: { throughYear: action.throughYear ?? null }
+        },
+        piaSource: { ...state.piaSource, [action.person]: 'workshop' }
+      };
+    }
     case 'SET_PIA_SOURCE': {
       if (action.person !== 'spouse1' && action.person !== 'spouse2') return state;
-      if (action.source !== 'profile' && action.source !== 'earnings') return state;
+      if (action.source !== 'profile' && action.source !== 'earnings' && action.source !== 'workshop') {
+        return state;
+      }
+      if (action.source === 'workshop' && state.workshopPia[action.person] == null) return state;
       if (state.piaSource[action.person] === action.source) return state;
       return {
         ...state,
@@ -156,6 +184,8 @@ export const deserializeScenario = (raw = {}) => {
     // carries either is ignored rather than trusted.
     earnings: { spouse1: null, spouse2: null },
     derivedPia: { spouse1: null, spouse2: null },
+    workshopPia: { spouse1: null, spouse2: null },
+    workshopMeta: { spouse1: null, spouse2: null },
     piaSource: { spouse1: 'profile', spouse2: 'profile' },
     provenance: PROVENANCE.ESTIMATED,
     // Recorded assumptions win over freshly-derived ones.
@@ -189,6 +219,12 @@ export const hasThirtyFiveNonZeroYears = (record) => {
 // the assumptions it was computed under.
 export const effectivePia = (scenario, person) => {
   const typed = person === 'spouse2' ? scenario.spouse2Pia : scenario.spouse1Pia;
+  if (
+    scenario.piaSource?.[person] === 'workshop' &&
+    scenario.workshopPia?.[person] != null
+  ) {
+    return scenario.workshopPia[person];
+  }
   if (
     scenario.piaSource?.[person] === 'earnings' &&
     scenario.derivedPia?.[person] != null
