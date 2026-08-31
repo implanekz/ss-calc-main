@@ -19,3 +19,11 @@ dist/
 .env.development
 .env.production
 .worktrees/
+
+# Offline mortality modeling inputs and local R libraries
+modeling/longevity/**/raw/
+modeling/longevity/**/interim/
+modeling/longevity/**/.renv/
+modeling/longevity/**/renv/library/
+*.xpt
+*.dta
