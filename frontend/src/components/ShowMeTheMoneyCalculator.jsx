@@ -11,8 +11,14 @@ import { useCalculatorPersistence } from '../hooks/useCalculatorPersistence';
 import { useNavigate } from 'react-router-dom';
 import { OneMonthAtATimeModal } from './OneMonthAtATime';
 import { OurLifelongTimeline } from './OurLifelongTimeline';
+import HouseholdWorkStopPanel from './HouseholdWorkStopPanel';
 import { isTimelineReachable, getHouseholdBucket } from './OurLifelongTimeline/timelineMath';
 import { calculateProjection, combineProjections } from '../calculators/showMeTheMoney/projections';
+import { buildLongevitySummary } from '../calculators/longevity/summary';
+import {
+    emptyLongevityProfile,
+    migrateLifeExpectancyPreferences
+} from '../calculators/longevity/preferences';
 import { applyBenefitCut, calculateAxisRanges } from '../calculators/showMeTheMoney/ssCuts';
 import {
     createScenario,
@@ -22,11 +28,14 @@ import {
     PROVENANCE,
     hasThirtyFiveNonZeroYears,
     planLabel,
-    effectivePia
+    effectivePia,
+    piaFieldView,
+    resolveEnteredPia,
+    householdWorkStopRungsForRelationship
 } from '../calculators/showMeTheMoney/scenario';
 import { fetchEarnings, fetchWorkStopLadder, calculatePiaFromEarnings, readDevEarnings } from '../services/earningsService';
 import { describeEarningsVintage } from '../utils/earningsVintage';
-import { readWorkshopPia, disableWorkshopPia } from '../utils/workshopPia';
+import { readWorkshopPia, disableWorkshopPia, workshopPiaHydrationAction } from '../utils/workshopPia';
 import { getAuthToken } from '../config/supabase';
 
 const birthYearFromDob = (dob) => {
@@ -1805,16 +1814,8 @@ const ShowMeTheMoneyCalculator = () => {
                 if (records.spouse2) dispatch({ type: 'SET_EARNINGS', person: 'spouse2', record: records.spouse2 });
                 const workshop = readWorkshopPia();
                 for (const person of ['spouse1', 'spouse2']) {
-                    const adopted = workshop[person];
-                    if (adopted?.enabled && adopted.pia != null) {
-                        dispatch({
-                            type: 'SET_WORKSHOP_PIA',
-                            person,
-                            pia: adopted.pia,
-                            throughYear: adopted.throughYear,
-                            enabled: true
-                        });
-                    }
+                    const action = workshopPiaHydrationAction(person, workshop[person]);
+                    if (action) dispatch(action);
                 }
             } catch (error) {
                 console.error('Could not load earnings records:', error);
@@ -1853,6 +1854,8 @@ const ShowMeTheMoneyCalculator = () => {
         })();
 
         return () => { cancelled = true; };
+        // Nested earnings fields are the actual triggers; `scenario.earnings` identity is unstable.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
 
     // Earnings-derived PIA from banked rows only. Profile DOB wins over the
@@ -1882,6 +1885,8 @@ const ShowMeTheMoneyCalculator = () => {
         })();
 
         return () => { cancelled = true; };
+        // Nested earnings fields are the actual triggers; `scenario.earnings` identity is unstable.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
 
     // Track if we've loaded initial persisted state to prevent infinite loop
@@ -1899,10 +1904,8 @@ const ShowMeTheMoneyCalculator = () => {
     useEffect(() => {
         if (isLoaded && persistedState && !hasLoadedPersistedState.current) {
             hasLoadedPersistedState.current = true;
-            // Deliberately NOT restored: isMarried, spouse1Dob, spouse2Dob, spouse1Pia,
-            // spouse2Pia and both spouses' preferred ages. Those are owned by the
-            // profile/partners/preferences sync effect below so the calculator always
-            // reflects Onboarding rather than a stale saved copy.
+            // DOB, relationship, and preferred ages remain profile-owned. A saved
+            // typed PIA is used only as a fallback below when the profile has none.
             const restored = deserializeScenario(persistedState);
             [
                 'inflation',
@@ -1928,8 +1931,24 @@ const ShowMeTheMoneyCalculator = () => {
                 assumptions: restored.assumptions,
                 schemaVersion: restored.schemaVersion
             });
+
+            // Profile data remains authoritative, but a typed PIA that has only
+            // reached calculator persistence must survive a trip to the PIA
+            // Calculator. This fallback updates scenario state only.
+            const profilePia = profile?.pia_at_fra ?? profile?.piaAtFra ?? profile?.own_pia ?? profile?.ownPia;
+            const restoredSpouse1Pia = resolveEnteredPia(profilePia, restored.spouse1Pia);
+            if (profilePia == null && restoredSpouse1Pia !== '') {
+                dispatch({ type: 'SET_FIELD', field: 'spouse1Pia', value: restoredSpouse1Pia });
+            }
+
+            const partner = partners?.[0];
+            const partnerPia = partner?.pia_at_fra ?? partner?.piaAtFra ?? partner?.pia;
+            const restoredSpouse2Pia = resolveEnteredPia(partnerPia, restored.spouse2Pia);
+            if (partnerPia == null && restoredSpouse2Pia !== '') {
+                dispatch({ type: 'SET_FIELD', field: 'spouse2Pia', value: restoredSpouse2Pia });
+            }
         }
-    }, [isLoaded, persistedState]);
+    }, [isLoaded, persistedState, profile, partners]);
 
     // Force Sync with Profile/Partners Data
     // This ensures that if the user updates Onboarding, the calculator reflects it effectively.
@@ -2029,6 +2048,60 @@ const ShowMeTheMoneyCalculator = () => {
     const primaryFirstName = profile?.first_name?.trim() || profile?.firstName?.trim() || 'Bob';
     const spouseFirstName = partners?.[0]?.first_name?.trim() || partners?.[0]?.firstName?.trim() || 'Spouse';
 
+    const longevityAsOfDate = useMemo(() => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }, []);
+
+    const longevityPeople = useMemo(() => {
+        const primaryPersonId = profile?.id || user?.id || null;
+        const partnerPersonId = partners?.[0]?.id || null;
+        const saved = migrateLifeExpectancyPreferences({
+            saved: preferences?.lifeExpectancy,
+            primaryPersonId,
+            partnerPersonId
+        });
+        const people = [];
+        if (primaryPersonId) {
+            people.push({
+                personId: primaryPersonId,
+                name: primaryFirstName,
+                sex: saved.profilesByPersonId[primaryPersonId]?.sex || null,
+                birthDate: spouse1Dob || profile?.date_of_birth || null,
+                profile: saved.profilesByPersonId[primaryPersonId] || emptyLongevityProfile()
+            });
+        }
+        if (isMarried && partnerPersonId) {
+            people.push({
+                personId: partnerPersonId,
+                name: spouseFirstName,
+                sex: saved.profilesByPersonId[partnerPersonId]?.sex || null,
+                birthDate: spouse2Dob || partners[0]?.date_of_birth || null,
+                profile: saved.profilesByPersonId[partnerPersonId] || emptyLongevityProfile()
+            });
+        }
+        return people;
+    }, [
+        isMarried,
+        partners,
+        preferences,
+        primaryFirstName,
+        profile,
+        spouse1Dob,
+        spouse2Dob,
+        spouseFirstName,
+        user
+    ]);
+
+    const longevitySummary = useMemo(
+        () => buildLongevitySummary({ people: longevityPeople, asOfDate: longevityAsOfDate }),
+        [longevityPeople, longevityAsOfDate]
+    );
+
+    const projectionEndYear = Object.keys(longevitySummary.individuals || {}).length > 0
+        ? longevitySummary.axisEndYear
+        : undefined;
+
     // Whose earnings record we actually hold. The banner names the person
     // rather than implying the household is covered: a partner-only upload
     // must not read as verification of the primary's numbers.
@@ -2052,6 +2125,8 @@ const ShowMeTheMoneyCalculator = () => {
         .map((person) => scenario.piaSource[person] === 'workshop' ? scenario.workshopMeta[person]?.throughYear : null)
         .find((year) => year != null);
     const showPiaSourceBanner = scenario.provenance !== PROVENANCE.ESTIMATED || usingWorkshopForChart;
+    const spouse1PiaField = piaFieldView(scenario, 'spouse1');
+    const spouse2PiaField = piaFieldView(scenario, 'spouse2');
 
     const vintageNotes = ['spouse1', 'spouse2']
         .filter((person) => scenario.earnings[person])
@@ -2089,6 +2164,11 @@ const ShowMeTheMoneyCalculator = () => {
             ? { person: 'spouse2', label: spouseFirstName, rungs: workStopLadders.spouse2, record: scenario.earnings.spouse2 }
             : null
     ].filter(Boolean);
+    const relationshipStatus = profile?.relationship_status ?? profile?.relationshipStatus;
+    const householdWorkStopRungs = householdWorkStopRungsForRelationship(
+        relationshipStatus,
+        workStopLadders
+    );
 
     const [chartView, setChartView] = useState('monthly'); // monthly, cumulative, combined, earlyLate, post70, sscuts
     const [chartData, setChartData] = useState({ labels: [], datasets: [] });
@@ -2170,21 +2250,24 @@ const ShowMeTheMoneyCalculator = () => {
             dob: spouse1Dob,
             filingYear: 62,
             filingMonth: 0,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: projectionEndYear
         });
         const primaryPreferred = calculateProjection({
             pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: spouse1PreferredYear,
             filingMonth: spouse1PreferredMonth,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: projectionEndYear
         });
         const primaryAge70 = calculateProjection({
             pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 70,
             filingMonth: 0,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: projectionEndYear
         });
 
         const primaryProjections = {
@@ -2214,21 +2297,24 @@ const ShowMeTheMoneyCalculator = () => {
                 dob: spouse2Dob,
                 filingYear: 62,
                 filingMonth: 0,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: projectionEndYear
             });
             const spousePreferredScenario = calculateProjection({
                 pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: spouse2PreferredYear,
                 filingMonth: spouse2PreferredMonth,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: projectionEndYear
             });
             const spouseAge70 = calculateProjection({
                 pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 70,
                 filingMonth: 0,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: projectionEndYear
             });
 
             spouseProjections = {
@@ -2289,7 +2375,7 @@ const ShowMeTheMoneyCalculator = () => {
             primaryYears,
             spouseYears
         };
-    }, [isMarried, spouse1Dob, chartSpouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, chartSpouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge]);
+    }, [isMarried, spouse1Dob, chartSpouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, chartSpouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge, projectionEndYear]);
 
     // Bubble Chart Data - Calculate 4% Rule Equivalents at selected age
     const bubbleChartData = useMemo(() => {
@@ -3171,6 +3257,7 @@ const ShowMeTheMoneyCalculator = () => {
     };
 
     const handlePiaBlur = () => {
+        if (spouse1PiaField.readOnly) return;
         const val = Number(spouse1Pia) || 0;
         if (isDevMode) {
             updateDevProfile({ own_pia: val });
@@ -3181,6 +3268,7 @@ const ShowMeTheMoneyCalculator = () => {
     };
 
     const handleSpousePiaBlur = () => {
+        if (spouse2PiaField.readOnly) return;
         if (!partners?.[0]?.id) return;
         const val = Number(spouse2Pia) || 0;
         if (isDevMode) {
@@ -3280,8 +3368,8 @@ const ShowMeTheMoneyCalculator = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <div>
-                                            <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                                Enter Your PIA ($)
+                                            <div className="mb-1 flex items-center gap-1 text-xs text-gray-600">
+                                                <label htmlFor="spouse1-pia">Enter Your PIA ($)</label>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPiaFraModal(true)}
@@ -3289,15 +3377,29 @@ const ShowMeTheMoneyCalculator = () => {
                                                 >
                                                     What's This?
                                                 </button>
-                                            </label>
+                                            </div>
                                             <input
+                                                id="spouse1-pia"
                                                 type="number"
-                                                value={spouse1Pia}
+                                                value={spouse1PiaField.value}
                                                 onChange={e => setSpouse1Pia(e.target.value ? Number(e.target.value) : '')}
                                                 onBlur={handlePiaBlur}
-                                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                                readOnly={spouse1PiaField.readOnly}
+                                                aria-describedby={spouse1PiaField.readOnly ? 'spouse1-pia-source' : undefined}
+                                                className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
+                                                    spouse1PiaField.readOnly
+                                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                                                        : 'border-gray-300'
+                                                }`}
                                                 placeholder="Insert PIA here"
                                             />
+                                            {spouse1PiaField.readOnly && (
+                                                <p id="spouse1-pia-source" className="mt-1 text-xs text-emerald-700">
+                                                    {scenario.piaSource.spouse1 === 'workshop'
+                                                        ? 'PIA Calculator value currently driving the chart.'
+                                                        : 'Earnings-record value currently driving the chart.'}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="bg-primary-100 rounded p-2">
@@ -3367,8 +3469,8 @@ const ShowMeTheMoneyCalculator = () => {
                                         </div>
                                         <div className="space-y-2">
                                             <div>
-                                                <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                                    Enter Your PIA ($)
+                                                <div className="mb-1 flex items-center gap-1 text-xs text-gray-600">
+                                                    <label htmlFor="spouse2-pia">Enter Your PIA ($)</label>
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPiaFraModal(true)}
@@ -3376,15 +3478,29 @@ const ShowMeTheMoneyCalculator = () => {
                                                     >
                                                         What's This?
                                                     </button>
-                                                </label>
+                                                </div>
                                                 <input
+                                                    id="spouse2-pia"
                                                     type="number"
-                                                    value={spouse2Pia}
+                                                    value={spouse2PiaField.value}
                                                     onChange={e => setSpouse2Pia(e.target.value ? Number(e.target.value) : '')}
                                                     onBlur={handleSpousePiaBlur}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                                    readOnly={spouse2PiaField.readOnly}
+                                                    aria-describedby={spouse2PiaField.readOnly ? 'spouse2-pia-source' : undefined}
+                                                    className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
+                                                        spouse2PiaField.readOnly
+                                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                                                            : 'border-gray-300'
+                                                    }`}
                                                     placeholder="Insert PIA here"
                                                 />
+                                                {spouse2PiaField.readOnly && (
+                                                    <p id="spouse2-pia-source" className="mt-1 text-xs text-emerald-700">
+                                                        {scenario.piaSource.spouse2 === 'workshop'
+                                                            ? 'PIA Calculator value currently driving the chart.'
+                                                            : 'Earnings-record value currently driving the chart.'}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <div className="bg-primary-100 rounded p-2">
@@ -3890,6 +4006,12 @@ const ShowMeTheMoneyCalculator = () => {
 
                 {/* Earnings Provenance Banner */}
                 <div className="px-4 pt-4">
+                    <HouseholdWorkStopPanel
+                        primaryName={primaryFirstName}
+                        spouseName={spouseFirstName}
+                        rungs={householdWorkStopRungs}
+                    />
+
                     {!showPiaSourceBanner ? null : (
                         <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 mb-4">
                             <div className="font-semibold text-emerald-900">
@@ -4404,6 +4526,8 @@ const ShowMeTheMoneyCalculator = () => {
                                             setSelectedYearAge(year - primaryBirthYear);
                                             setShowYearModal(true);
                                         }}
+                                        longevitySummary={longevitySummary}
+                                        onPersonalizeClick={() => navigate('/life-expectancy')}
                                     />
                                 </div>
                             ) : (
