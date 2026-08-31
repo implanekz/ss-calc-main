@@ -207,6 +207,16 @@ Each step is applied **exactly once**. The work-stop ladder deliberately returns
 
 ---
 
+## 9. Mortality and longevity horizons
+
+SSA 2023 period life table `qx` is the only absolute mortality baseline. Smoking, education, and self-rated health personalization is fitted offline from NHIS Person + Sample Adult files joined to the 2019 public-use Linked Mortality Files; that model is not shipped until temporal-validation gates pass. Runtime then fails closed to a labeled SSA population estimate.
+
+Authoritative lineage, checksums, cohorts, calibration, and fallbacks: [`docs/MORTALITY-DATA-LINEAGE.md`](MORTALITY-DATA-LINEAGE.md).
+
+Our Lifelong Timeline and its preferred/62/70 projections use `longevitySummary.axisEndYear` so every displayed year has financial data. Other calculator views still default to `birthYear + 95` unless they receive an explicit `endYear`.
+
+---
+
 ## Adding a new transformation
 
 1. Name the units. If they differ from the input, say so at the call site.
