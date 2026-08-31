@@ -1,5 +1,6 @@
 // frontend/src/components/OurLifelongTimeline/CalendarPhaseBar.jsx
 import React, { useRef, useEffect } from 'react';
+import LongevityFlagPopover from './LongevityFlagPopover';
 
 const MIN_AGE = 62;
 const MAX_AGE = 95;
@@ -11,10 +12,6 @@ const MILESTONE_STYLES = {
   age70: { color: '#F59E0B', chip: '70' }
 };
 
-// Vertical px offset applied per stack level when two milestones share a year (e.g. a chosen
-// filing age landing on the same year as FRA). A person has at most 4 milestones and only
-// chosenFilingAge is variable, so at most 2 can ever collide -- level 0 and level 1 are the
-// only cases that exist.
 const MARKER_LEVEL_HEIGHT = 48;
 
 const CalendarPhaseBar = ({
@@ -32,6 +29,7 @@ const CalendarPhaseBar = ({
   isDraggingSlowGo,
   setIsDraggingSlowGo,
   milestones,
+  longevityMarkers = [],
   onMilestoneClick
 }) => {
   const trackRef = useRef(null);
@@ -133,23 +131,40 @@ const CalendarPhaseBar = ({
           Clicking a marker snaps the shared inspection cursor to that year via onMilestoneClick
           -- the same cursorYear state the drag cursor already writes to, not a parallel state. */}
       {(() => {
-        const visibleMilestones = milestones.filter((m) => yearToPercent(m.year) >= 0);
-        // Group by year so same-year markers (now always present per Task 2, rather than one
-        // being silently dropped) stack instead of overlapping. Stack index is assigned in
-        // array order, which is already year-sorted -- ties keep getMilestonesForPerson's own
-        // push order (fixed milestone first, chosenFilingAge second).
+        const visibleFiling = milestones
+          .filter((m) => yearToPercent(m.year) >= 0)
+          .map((m) => ({ ...m, _pos: m.year, _type: 'filing' }));
+        const visibleLongevity = (longevityMarkers || []).map((m) => ({
+          ...m,
+          _pos: m.positionYear,
+          _type: 'longevity'
+        }));
+        const combined = [...visibleFiling, ...visibleLongevity];
         const stackIndexByKey = {};
         const countByYear = {};
-        visibleMilestones.forEach((m) => {
-          const key = `${m.kind}-${m.year}`;
-          stackIndexByKey[key] = countByYear[m.year] || 0;
-          countByYear[m.year] = (countByYear[m.year] || 0) + 1;
+        combined.forEach((m) => {
+          const yearKey = Math.round(m._pos);
+          const key = `${m._type}-${m.id || m.kind}-${m._pos}`;
+          stackIndexByKey[key] = countByYear[yearKey] || 0;
+          countByYear[yearKey] = (countByYear[yearKey] || 0) + 1;
         });
 
-        return visibleMilestones.map((m) => {
-          const style = MILESTONE_STYLES[m.kind];
-          const stackOffset = stackIndexByKey[`${m.kind}-${m.year}`] * MARKER_LEVEL_HEIGHT;
+        return combined.map((m) => {
+          const key = `${m._type}-${m.id || m.kind}-${m._pos}`;
+          const stackOffset = stackIndexByKey[key] * MARKER_LEVEL_HEIGHT;
+          if (m._type === 'longevity') {
+            return (
+              <LongevityFlagPopover
+                key={m.id}
+                marker={m}
+                leftPercent={yearToPercent(m.positionYear)}
+                stackIndex={stackIndexByKey[key]}
+                onActivate={onMilestoneClick}
+              />
+            );
+          }
 
+          const style = MILESTONE_STYLES[m.kind];
           return (
             <button
               key={`${m.kind}-${m.year}`}

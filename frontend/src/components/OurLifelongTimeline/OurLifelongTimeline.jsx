@@ -3,27 +3,17 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import CalendarPhaseBar from './CalendarPhaseBar';
 import TimelineCursor from './TimelineCursor';
 import DeathMarker from './DeathMarker';
+import HouseholdLongevityRow from './HouseholdLongevityRow';
 import { getAxisEndYear, getHouseholdBuckets, getMilestonesForPerson, calendarYearToAge } from './timelineMath';
+import { buildTimelineLongevityPresentation } from './longevityTimelineMath';
 
 const PX_PER_YEAR = 50;
-
-// How often the year ruler beneath both rows places a labeled tick.
 const YEAR_TICK_INTERVAL = 5;
-
-// The ruler's own vertical footprint (mt-3 gap + its text row) in the normal-flow layout below
-// both bars -- folded into TWO_ROW_HEIGHT so the tooltip still renders below it, not on top of it.
 const YEAR_RULER_HEIGHT = 28;
-
-// Two 52px-tall CalendarPhaseBar rows plus the mb-28 (112px) gap between them -- grown from
-// 32px so row 2's stacked (two-level) markers have clearance below row 1's bar -- plus the year
-// ruler's own height. The tooltip (Task 7) is positioned this far down plus a small clearance
-// so it never overlaps either bar or the ruler.
-const TWO_ROW_HEIGHT = 52 + 112 + 52 + YEAR_RULER_HEIGHT;
-const TOOLTIP_TOP_OFFSET = TWO_ROW_HEIGHT + 12;
-
-// Approximate rendered width of the redesigned 3-box tooltip, used only to decide when it
-// would run off the right edge of the currently-scrolled-into-view window and should flip to
-// grow leftward from the cursor instead.
+const PERSON_ROW_HEIGHT = 52;
+const PERSON_ROW_GAP = 112;
+const HOUSEHOLD_ROW_HEIGHT = 40;
+const HOUSEHOLD_ROW_GAP = 80;
 const TOOLTIP_WIDTH = 600;
 const TOOLTIP_FLIP_MARGIN = 24;
 
@@ -56,10 +46,14 @@ const OurLifelongTimeline = ({
   setIsDraggingSpouseGoGo,
   isDraggingSpouseSlowGo,
   setIsDraggingSpouseSlowGo,
-  onDeeperDive
+  onDeeperDive,
+  longevitySummary,
+  onPersonalizeClick
 }) => {
   const currentYear = new Date().getFullYear();
   const [cursorYear, setCursorYear] = useState(currentYear);
+  const hasSpouse = Boolean(spouse2Dob);
+  const isCouple = hasSpouse;
 
   const scrollContainerRef = useRef(null);
   const [viewport, setViewport] = useState({ clientWidth: 0, scrollLeft: 0 });
@@ -79,18 +73,42 @@ const OurLifelongTimeline = ({
   }, []);
 
   const birthYearPrimary = new Date(spouse1Dob).getFullYear();
-  const birthYearSpouse = new Date(spouse2Dob).getFullYear();
+  const birthYearSpouse = hasSpouse ? new Date(spouse2Dob).getFullYear() : null;
   const axisStartYear = currentYear;
-  const axisEndYear = getAxisEndYear(birthYearPrimary, birthYearSpouse);
+  const presentation = useMemo(
+    () => (longevitySummary
+      ? buildTimelineLongevityPresentation(longevitySummary, axisStartYear)
+      : null),
+    [longevitySummary, axisStartYear]
+  );
+  const axisEndYear = getAxisEndYear({
+    birthYears: [birthYearPrimary, birthYearSpouse].filter((year) => Number.isFinite(year)),
+    longevitySummary
+  });
 
-  // Same computation ShowMeTheMoneyCalculator.jsx uses to build deathYearNumber for its own
-  // combineProjections() calls (primary person's birth year + deathAge), so the household
-  // buckets stay consistent with the tooltip's survivor-adjusted "Monthly Income" line above them.
   const deathYear = birthYearPrimary + Number(deathAge);
+  const showHouseholdRow = Boolean(presentation?.household);
+
+  const rowStackHeight = isCouple
+    ? PERSON_ROW_HEIGHT + PERSON_ROW_GAP + PERSON_ROW_HEIGHT
+      + (showHouseholdRow ? HOUSEHOLD_ROW_GAP + HOUSEHOLD_ROW_HEIGHT : 0)
+      + YEAR_RULER_HEIGHT
+    : PERSON_ROW_HEIGHT + YEAR_RULER_HEIGHT;
+  const tooltipTopOffset = rowStackHeight + 12;
 
   const buckets = useMemo(
-    () => getHouseholdBuckets({ spouse1Pia, spouse1Dob, spouse2Pia, spouse2Dob, inflation, prematureDeath, deathYear }),
-    [spouse1Pia, spouse1Dob, spouse2Pia, spouse2Dob, inflation, prematureDeath, deathYear]
+    () => getHouseholdBuckets({
+      spouse1Pia,
+      spouse1Dob,
+      spouse2Pia,
+      spouse2Dob,
+      inflation,
+      prematureDeath,
+      deathYear,
+      endYear: axisEndYear,
+      isMarried: isCouple
+    }),
+    [spouse1Pia, spouse1Dob, spouse2Pia, spouse2Dob, inflation, prematureDeath, deathYear, axisEndYear, isCouple]
   );
 
   const primaryMilestones = useMemo(
@@ -98,9 +116,19 @@ const OurLifelongTimeline = ({
     [primaryLabel, spouse1Dob, spouse1PreferredYear]
   );
   const spouseMilestones = useMemo(
-    () => getMilestonesForPerson({ label: spouseLabel, dob: spouse2Dob, preferredYear: spouse2PreferredYear }),
-    [spouseLabel, spouse2Dob, spouse2PreferredYear]
+    () => (hasSpouse
+      ? getMilestonesForPerson({ label: spouseLabel, dob: spouse2Dob, preferredYear: spouse2PreferredYear })
+      : []),
+    [hasSpouse, spouseLabel, spouse2Dob, spouse2PreferredYear]
   );
+
+  const markersForDob = (dob) => {
+    const person = Object.values(longevitySummary?.individuals || {})
+      .find((item) => item.birthDate === dob);
+    return person ? presentation?.individuals?.[person.personId]?.markers || [] : [];
+  };
+  const primaryLongevityMarkers = markersForDob(spouse1Dob);
+  const spouseLongevityMarkers = hasSpouse ? markersForDob(spouse2Dob) : [];
 
   const monthlyIncome = combinedProjections?.preferred?.monthly?.[cursorYear] || 0;
   const cumulativeIncome = combinedProjections?.preferred?.cumulative?.[cursorYear] || 0;
@@ -116,25 +144,14 @@ const OurLifelongTimeline = ({
     return ticks;
   }, [axisStartYear, axisEndYear]);
 
+  const needsPersonalization = Object.values(longevitySummary?.individuals || {})
+    .some((person) => person.estimateType !== 'personalized');
+
   return (
     <div className="space-y-3 mt-4">
-      {/*
-        overflow-x-auto forces overflow-y to auto too (per CSS spec, an axis that isn't
-        "visible" makes the other axis compute to "auto" as well), so anything positioned
-        outside this box's own padding box gets clipped/unreachable-by-scroll:
-          - CalendarPhaseBar's bolder markers (Task 4) can reach up to two stack levels above
-            the bar, roughly -126px at the chip's own top edge -- pt-32 (128px) covers that
-            with a small margin; the row label's older -top-5 need is comfortably inside it too.
-          - TimelineCursor's tooltip now renders below both rows and the year ruler entirely
-            (TOOLTIP_TOP_OFFSET, past the 244px two-row-plus-ruler block), rather than
-            overlapping either bar -- pb-96 (384px) reserves enough room for that offset plus
-            the tooltip's own worst-case rendered
-            height (narrative header with all optional lines present, plus the 3-box row) to
-            land inside the scrollable area instead of being clipped at the bottom.
-      */}
-      <div ref={scrollContainerRef} className="w-full overflow-x-auto pt-32 pb-96">
+      <div ref={scrollContainerRef} className="w-full overflow-x-auto pt-48 pb-96">
         <div className="relative" style={{ width: `${(axisEndYear - axisStartYear) * PX_PER_YEAR}px` }}>
-          <div className="mb-28">
+          <div className={isCouple ? 'mb-28' : 'mb-6'}>
             <CalendarPhaseBar
               label={primaryLabel}
               birthYear={birthYearPrimary}
@@ -150,31 +167,48 @@ const OurLifelongTimeline = ({
               isDraggingSlowGo={isDraggingSlowGo}
               setIsDraggingSlowGo={setIsDraggingSlowGo}
               milestones={primaryMilestones}
+              longevityMarkers={primaryLongevityMarkers}
               onMilestoneClick={setCursorYear}
             />
           </div>
-          <div>
-            <CalendarPhaseBar
-              label={spouseLabel}
-              birthYear={birthYearSpouse}
-              axisStartYear={axisStartYear}
-              axisEndYear={axisEndYear}
-              pxPerYear={PX_PER_YEAR}
-              goGoEndAge={spouseGoGoEndAge}
-              setGoGoEndAge={setSpouseGoGoEndAge}
-              slowGoEndAge={spouseSlowGoEndAge}
-              setSlowGoEndAge={setSpouseSlowGoEndAge}
-              isDraggingGoGo={isDraggingSpouseGoGo}
-              setIsDraggingGoGo={setIsDraggingSpouseGoGo}
-              isDraggingSlowGo={isDraggingSpouseSlowGo}
-              setIsDraggingSlowGo={setIsDraggingSpouseSlowGo}
-              milestones={spouseMilestones}
-              onMilestoneClick={setCursorYear}
-            />
-          </div>
+          {isCouple && (
+            <div className={showHouseholdRow ? 'mb-20' : undefined}>
+              <CalendarPhaseBar
+                label={spouseLabel}
+                birthYear={birthYearSpouse}
+                axisStartYear={axisStartYear}
+                axisEndYear={axisEndYear}
+                pxPerYear={PX_PER_YEAR}
+                goGoEndAge={spouseGoGoEndAge}
+                setGoGoEndAge={setSpouseGoGoEndAge}
+                slowGoEndAge={spouseSlowGoEndAge}
+                setSlowGoEndAge={setSpouseSlowGoEndAge}
+                isDraggingGoGo={isDraggingSpouseGoGo}
+                setIsDraggingGoGo={setIsDraggingSpouseGoGo}
+                isDraggingSlowGo={isDraggingSpouseSlowGo}
+                setIsDraggingSlowGo={setIsDraggingSpouseSlowGo}
+                milestones={spouseMilestones}
+                longevityMarkers={spouseLongevityMarkers}
+                onMilestoneClick={setCursorYear}
+              />
+            </div>
+          )}
+          {showHouseholdRow && (
+            <div className="mb-6">
+              <HouseholdLongevityRow
+                label="At least one alive"
+                markers={presentation.household.markers}
+                axisStartYear={axisStartYear}
+                axisEndYear={axisEndYear}
+                pxPerYear={PX_PER_YEAR}
+                onMarkerActivate={setCursorYear}
+              />
+            </div>
+          )}
+          {isCouple && !showHouseholdRow && presentation?.householdUnavailableMessage && (
+            <p className="text-xs text-gray-500 mb-2">{presentation.householdUnavailableMessage}</p>
+          )}
 
-          {/* Year ruler: a labeled tick every YEAR_TICK_INTERVAL years, so a reader can place any
-              point on either bar in calendar time without hovering for the cursor tooltip. */}
           <div className="relative mt-3 h-4 border-t border-gray-200">
             {yearTicks.map((y) => (
               <span
@@ -204,8 +238,8 @@ const OurLifelongTimeline = ({
             setYear={setCursorYear}
             primaryLabel={primaryLabel}
             primaryAge={calendarYearToAge(birthYearPrimary, cursorYear)}
-            spouseLabel={spouseLabel}
-            spouseAge={calendarYearToAge(birthYearSpouse, cursorYear)}
+            spouseLabel={isCouple ? spouseLabel : null}
+            spouseAge={isCouple ? calendarYearToAge(birthYearSpouse, cursorYear) : null}
             monthlyIncome={monthlyIncome}
             cumulativeIncome={cumulativeIncome}
             buckets={buckets}
@@ -214,15 +248,37 @@ const OurLifelongTimeline = ({
             prematureDeath={prematureDeath}
             deathYear={deathYear}
             flipLeft={flipLeft}
-            tooltipTopOffset={TOOLTIP_TOP_OFFSET}
+            tooltipTopOffset={tooltipTopOffset}
             onDeeperDive={onDeeperDive}
+            couple={isCouple}
           />
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">
-        Want a different picture? Change filing ages in the panel on the left — timing is the one lever still fully in your control.
-      </p>
+      <div className="text-xs text-gray-500 border-t border-gray-100 pt-2 space-y-1">
+        {presentation?.sourceDisclosure && (
+          <p>
+            {presentation.estimateLabel}: {presentation.sourceDisclosure}{' '}
+            <a className="underline" href="https://www.ssa.gov/oact/STATS/table4c6.html">SSA 2023 period life table</a>
+            {' · '}
+            <a className="underline" href="https://www.cdc.gov/nchs/linked-data/mortality-files/index.html">NCHS Linked Mortality Files</a>
+          </p>
+        )}
+        {needsPersonalization && typeof onPersonalizeClick === 'function' && (
+          <p>
+            <button
+              type="button"
+              onClick={onPersonalizeClick}
+              className="font-semibold text-primary-600 hover:text-primary-700 underline"
+            >
+              Personalize these ages
+            </button>
+          </p>
+        )}
+        <p>
+          Want a different picture? Change filing ages in the panel on the left — timing is the one lever still fully in your control.
+        </p>
+      </div>
     </div>
   );
 };

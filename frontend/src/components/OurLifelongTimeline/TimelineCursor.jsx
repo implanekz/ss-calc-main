@@ -21,7 +21,8 @@ const TimelineCursor = ({
   deathYear,
   flipLeft,
   tooltipTopOffset,
-  onDeeperDive
+  onDeeperDive,
+  couple = true
 }) => {
   const trackRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -67,7 +68,13 @@ const TimelineCursor = ({
     deathYear
   });
 
-  const filingBoxes = buildFilingComparisonBoxes({ buckets, year, think: narrative.think, cumulativeIncome });
+  const filingBoxes = buildFilingComparisonBoxes({
+    buckets,
+    year,
+    think: narrative.think,
+    cumulativeIncome,
+    couple
+  });
 
   return (
     <div
