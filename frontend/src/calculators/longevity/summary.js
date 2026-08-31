@@ -5,6 +5,7 @@ import { getIndividualLongevity } from './individualSurvival';
 
 const MIN_AGE = 0;
 const MAX_AGE = 119;
+const INDIVIDUAL_DISPLAY_CAP_AGE = 110;
 const THRESHOLD_PROBABILITIES = [75, 50, 25];
 const SSA_SOURCE_DISCLOSURE =
   'SSA 2023 period life table. Population estimate based on age and sex, using 2023 mortality rates without projected future improvement.';
@@ -28,6 +29,24 @@ export const getHouseholdCapYear = (people) => {
 
 export const roundAxisEnd = ({ latestYear, capYear }) =>
   latestYear >= capYear ? capYear : Math.min(capYear, Math.ceil(latestYear / 5) * 5);
+
+const applyIndividualDisplayCap = (longevity) => {
+  const capYear = birthdayAtAge(longevity.birthDate, INDIVIDUAL_DISPLAY_CAP_AGE).getFullYear();
+  const thresholds = {};
+  const capped = {};
+  THRESHOLD_PROBABILITIES.forEach((probability) => {
+    const age = longevity.thresholds[probability];
+    const exceedsCap = age != null && age > INDIVIDUAL_DISPLAY_CAP_AGE;
+    thresholds[probability] = exceedsCap ? INDIVIDUAL_DISPLAY_CAP_AGE : age;
+    capped[probability] = Boolean(exceedsCap);
+  });
+  return {
+    ...longevity,
+    thresholds,
+    capped,
+    capYear
+  };
+};
 
 const applyHouseholdDisplayCap = (household, capYear) => {
   const thresholds = {};
@@ -78,7 +97,7 @@ export const buildLongevitySummary = ({ people, asOfDate }) => {
   const validPeople = people.filter((person) => isCalculablePerson(person, asOfDate));
 
   validPeople.forEach((person) => {
-    const longevity = getIndividualLongevity({ person, asOfDate });
+    const longevity = applyIndividualDisplayCap(getIndividualLongevity({ person, asOfDate }));
     individuals[person.personId] = {
       ...longevity,
       headlineAge: getHeadlineLifeExpectancy(person.sex),

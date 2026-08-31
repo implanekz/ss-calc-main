@@ -40,4 +40,20 @@ describe('individual survival', () => {
       expect(result.curve[index].survival).toBeLessThanOrEqual(result.curve[index - 1].survival);
     }
   });
+
+  test('keeps true whole-age thresholds beyond the display cap', () => {
+    const elder = { personId: 'elder', name: 'Elder', sex: 'male', birthDate: '1915-06-15' };
+    const result = getIndividualLongevity({
+      person: elder,
+      asOfDate: new Date(2026, 7, 31)
+    });
+    [75, 50, 25].forEach((probability) => {
+      const age = result.thresholds[probability];
+      expect(age).toBeGreaterThan(110);
+      expect(result.curve.find((point) => point.age === age).survival).toBeGreaterThanOrEqual(probability / 100);
+      expect(result.curve.find((point) => point.age === age + 1)?.survival ?? 0).toBeLessThan(probability / 100);
+    });
+    expect(result.capped).toBeUndefined();
+    expect(result.capYear).toBeUndefined();
+  });
 });

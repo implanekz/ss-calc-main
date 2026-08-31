@@ -9,7 +9,6 @@ import {
 import { survivalForFraction } from './hazardMath';
 
 const MAX_SSA_AGE = 119;
-const INDIVIDUAL_DISPLAY_CAP_AGE = 110;
 const THRESHOLD_PROBABILITIES = [75, 50, 25];
 
 const annualQx = (person, age) => getSsaQx(person.sex, age);
@@ -68,7 +67,6 @@ export const getIndividualLongevity = ({ person, asOfDate }) => {
   }
 
   const thresholds = {};
-  const capped = {};
   THRESHOLD_PROBABILITIES.forEach((probability) => {
     const target = probability / 100;
     let greatestAge = null;
@@ -77,9 +75,7 @@ export const getIndividualLongevity = ({ person, asOfDate }) => {
         greatestAge = point.age;
       }
     });
-    const exceedsDisplayCap = greatestAge != null && greatestAge > INDIVIDUAL_DISPLAY_CAP_AGE;
-    thresholds[probability] = exceedsDisplayCap ? INDIVIDUAL_DISPLAY_CAP_AGE : greatestAge;
-    capped[probability] = Boolean(exceedsDisplayCap);
+    thresholds[probability] = greatestAge;
   });
 
   return {
@@ -89,8 +85,6 @@ export const getIndividualLongevity = ({ person, asOfDate }) => {
     birthDate: person.birthDate,
     estimateType: 'ssa-population',
     curve,
-    thresholds,
-    capped,
-    capYear: birthdayAtAge(birth, INDIVIDUAL_DISPLAY_CAP_AGE).getFullYear()
+    thresholds
   };
 };
