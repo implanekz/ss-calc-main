@@ -1,4 +1,3 @@
-import { getSsaQx } from './artifacts';
 import {
   attainedWholeAge,
   birthdayAtAge,
@@ -7,13 +6,19 @@ import {
   startOfLocalDay
 } from './dateMath';
 import { survivalForFraction } from './hazardMath';
+import { getAnnualQx, isCompleteLongevityProfile } from './personalization';
 
 const MAX_SSA_AGE = 119;
 const THRESHOLD_PROBABILITIES = [75, 50, 25];
 
-const annualQx = (person, age) => getSsaQx(person.sex, age);
+const annualQx = (person, age, modelArtifact) => getAnnualQx({
+  sex: person.sex,
+  age,
+  profile: person.profile,
+  modelArtifact
+});
 
-export const survivalToDate = ({ person, asOfDate, targetDate }) => {
+export const survivalToDate = ({ person, asOfDate, targetDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
   const target = startOfLocalDay(targetDate);
   if (target.getTime() === asOf.getTime()) {
@@ -33,14 +38,14 @@ export const survivalToDate = ({ person, asOfDate, targetDate }) => {
     const intervalDays = daysBetween(birthdayAtAge(birth, age), intervalEnd);
     const stepEnd = target < intervalEnd ? target : intervalEnd;
     const fraction = daysBetween(cursor, stepEnd) / intervalDays;
-    survival *= survivalForFraction(annualQx(person, age), fraction);
+    survival *= survivalForFraction(annualQx(person, age, modelArtifact), fraction);
     cursor = stepEnd;
   }
 
   return survival;
 };
 
-export const getIndividualLongevity = ({ person, asOfDate }) => {
+export const getIndividualLongevity = ({ person, asOfDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
   const birth = parseLocalIsoDate(person.birthDate);
   const currentAge = attainedWholeAge(birth, asOf);
@@ -62,7 +67,7 @@ export const getIndividualLongevity = ({ person, asOfDate }) => {
       age,
       date,
       year: date.getFullYear(),
-      survival: survivalToDate({ person, asOfDate: asOf, targetDate: date })
+      survival: survivalToDate({ person, asOfDate: asOf, targetDate: date, modelArtifact })
     });
   }
 
@@ -83,7 +88,9 @@ export const getIndividualLongevity = ({ person, asOfDate }) => {
     name: person.name,
     sex: person.sex,
     birthDate: person.birthDate,
-    estimateType: 'ssa-population',
+    estimateType: isCompleteLongevityProfile(person.profile) && modelArtifact
+      ? 'personalized'
+      : 'ssa-population',
     curve,
     thresholds
   };

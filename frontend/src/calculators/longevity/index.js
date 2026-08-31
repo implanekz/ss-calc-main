@@ -17,6 +17,13 @@ export { getIndividualLongevity, survivalToDate } from './individualSurvival';
 export { getHouseholdLongevity } from './householdSurvival';
 export { buildLongevitySummary, getHouseholdCapYear, roundAxisEnd } from './summary';
 export {
+  MortalityModelError,
+  getAnnualQx,
+  getCalibrationDistribution,
+  getRelativeHazard,
+  isCompleteLongevityProfile
+} from './personalization';
+export {
   fixedAsOfDate,
   mary,
   maryProjectionInputs,
@@ -24,3 +31,4 @@ export {
   tedAndMary,
   tedProjectionInputs
 } from './fixtures';
+export { buildLifeExpectancyPresentation } from './presentation';

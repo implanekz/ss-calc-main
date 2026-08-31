@@ -12,7 +12,7 @@ const eitherAliveFromIndividuals = (people, individualSurvival) =>
     1
   );
 
-export const getHouseholdLongevity = ({ people, asOfDate }) => {
+export const getHouseholdLongevity = ({ people, asOfDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
   const endYear = Math.min(...people.map(lastSupportedYear));
   const curve = [];
@@ -28,7 +28,8 @@ export const getHouseholdLongevity = ({ people, asOfDate }) => {
       individualSurvival[person.personId] = survivalToDate({
         person,
         asOfDate: asOf,
-        targetDate
+        targetDate,
+        modelArtifact
       });
     });
 

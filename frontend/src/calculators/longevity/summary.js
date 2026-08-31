@@ -2,6 +2,11 @@ import { getHeadlineLifeExpectancy } from './artifacts';
 import { attainedWholeAge, birthdayAtAge } from './dateMath';
 import { getHouseholdLongevity } from './householdSurvival';
 import { getIndividualLongevity } from './individualSurvival';
+import {
+  MortalityModelError,
+  PERSONALIZED_SOURCE_DISCLOSURE,
+  isCompleteLongevityProfile
+} from './personalization';
 
 const MIN_AGE = 0;
 const MAX_AGE = 119;
@@ -92,17 +97,54 @@ const latestDisplayedYear = ({ individuals, household }) => {
   return years.length === 0 ? null : Math.max(...years);
 };
 
-export const buildLongevitySummary = ({ people, asOfDate }) => {
+const sourceDisclosureFor = (longevity, modelArtifact) => {
+  if (longevity.estimateType === 'personalized' && modelArtifact?.modelVersion) {
+    return PERSONALIZED_SOURCE_DISCLOSURE(modelArtifact.modelVersion);
+  }
+  return SSA_SOURCE_DISCLOSURE;
+};
+
+const summarizePerson = ({ person, asOfDate, modelArtifact }) => {
+  const longevity = applyIndividualDisplayCap(
+    getIndividualLongevity({ person, asOfDate, modelArtifact })
+  );
+  return {
+    ...longevity,
+    headlineAge: getHeadlineLifeExpectancy(person.sex),
+    sourceDisclosure: sourceDisclosureFor(longevity, modelArtifact)
+  };
+};
+
+export const buildLongevitySummary = ({ people, asOfDate, modelArtifact = null, onDiagnostic }) => {
   const individuals = {};
   const validPeople = people.filter((person) => isCalculablePerson(person, asOfDate));
+  let usedModelVersion = null;
 
   validPeople.forEach((person) => {
-    const longevity = applyIndividualDisplayCap(getIndividualLongevity({ person, asOfDate }));
-    individuals[person.personId] = {
-      ...longevity,
-      headlineAge: getHeadlineLifeExpectancy(person.sex),
-      sourceDisclosure: SSA_SOURCE_DISCLOSURE
-    };
+    const wantsPersonalization = isCompleteLongevityProfile(person.profile) && modelArtifact;
+    try {
+      const summarized = summarizePerson({
+        person,
+        asOfDate,
+        modelArtifact: wantsPersonalization ? modelArtifact : null
+      });
+      individuals[person.personId] = summarized;
+      if (summarized.estimateType === 'personalized') {
+        usedModelVersion = modelArtifact.modelVersion;
+      }
+    } catch (error) {
+      if (!(error instanceof MortalityModelError)) {
+        throw error;
+      }
+      if (typeof onDiagnostic === 'function') {
+        onDiagnostic({ code: 'INVALID_MORTALITY_MODEL', cause: error });
+      }
+      individuals[person.personId] = summarizePerson({
+        person,
+        asOfDate,
+        modelArtifact: null
+      });
+    }
   });
 
   let household = null;
@@ -111,10 +153,31 @@ export const buildLongevitySummary = ({ people, asOfDate }) => {
     capYear = individuals[validPeople[0].personId].capYear;
   } else if (validPeople.length >= 2) {
     capYear = getHouseholdCapYear(validPeople);
-    household = applyHouseholdDisplayCap(
-      getHouseholdLongevity({ people: validPeople, asOfDate }),
-      capYear
-    );
+    const householdPeople = validPeople.map((person) => ({
+      ...person,
+      profile: individuals[person.personId].estimateType === 'personalized' ? person.profile : null
+    }));
+    try {
+      household = applyHouseholdDisplayCap(
+        getHouseholdLongevity({
+          people: householdPeople,
+          asOfDate,
+          modelArtifact: usedModelVersion ? modelArtifact : null
+        }),
+        capYear
+      );
+    } catch (error) {
+      if (!(error instanceof MortalityModelError)) {
+        throw error;
+      }
+      if (typeof onDiagnostic === 'function') {
+        onDiagnostic({ code: 'INVALID_MORTALITY_MODEL', cause: error });
+      }
+      household = applyHouseholdDisplayCap(
+        getHouseholdLongevity({ people: validPeople, asOfDate, modelArtifact: null }),
+        capYear
+      );
+    }
   }
 
   const latestYear = latestDisplayedYear({ individuals, household }) ?? capYear;
@@ -124,6 +187,6 @@ export const buildLongevitySummary = ({ people, asOfDate }) => {
     individuals,
     household,
     axisEndYear: roundAxisEnd({ latestYear, capYear }),
-    modelVersion: null
+    modelVersion: usedModelVersion
   };
 };
