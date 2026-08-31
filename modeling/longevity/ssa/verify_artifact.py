@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from fetch_table4c6 import canonical_checksum
+from canonical import canonical_checksum
 
 REQUIRED_TOP_LEVEL_KEYS = {
     "schemaVersion",

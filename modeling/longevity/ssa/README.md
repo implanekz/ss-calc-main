@@ -47,6 +47,29 @@ The JSON artifact includes provenance metadata and a canonical SHA-256 checksum 
 | `lx` | Number of survivors out of 100,000 born alive |
 | `ex` | Remaining period life expectancy (years) |
 
+## Canonical checksum
+
+`checksumSha256` is the SHA-256 hex digest of a language-neutral UTF-8 payload derived from `data` only (metadata such as `retrievedAt` is excluded). The payload is built by emitting one line per row in sex order (`male`, then `female`) and age order (`0`–`119`):
+
+```
+sex|age|qx-six-decimals|lx-integer|ex-two-decimals\n
+```
+
+Examples:
+
+```
+male|0|0.006015|100000|75.79\n
+female|65|0.010188|87399|20.66\n
+```
+
+Formatting rules:
+
+- `qx`: fixed six digits after the decimal point (e.g. `0.000320` → `0.000320`)
+- `lx`: decimal integer with no separators
+- `ex`: fixed two digits after the decimal point
+
+The same canonicalizer (`modeling/longevity/ssa/canonical.py`) is used during artifact generation and verification so Python and JavaScript runtimes can reproduce the checksum independently of JSON float serialization.
+
 ## Spot-check values
 
 These `qx` values are pinned in tests and verification:

@@ -4,21 +4,17 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import sys
 import urllib.request
 from pathlib import Path
 
+from canonical import canonical_checksum
+
 SOURCE_URL = "https://www.ssa.gov/oact/STATS/table4c6.html"
 EXPECTED_MORTALITY_YEAR = 2023
 EXPECTED_TRUSTEES_REPORT_YEAR = 2026
-
-
-def canonical_checksum(data: dict) -> str:
-    payload = json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
 
 
 def build_artifact(rows: dict, retrieved_at: str) -> dict:
