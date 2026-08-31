@@ -1,0 +1,96 @@
+import { getSsaQx } from './artifacts';
+import {
+  attainedWholeAge,
+  birthdayAtAge,
+  daysBetween,
+  parseLocalIsoDate,
+  startOfLocalDay
+} from './dateMath';
+import { survivalForFraction } from './hazardMath';
+
+const MAX_SSA_AGE = 119;
+const INDIVIDUAL_DISPLAY_CAP_AGE = 110;
+const THRESHOLD_PROBABILITIES = [75, 50, 25];
+
+const annualQx = (person, age) => getSsaQx(person.sex, age);
+
+export const survivalToDate = ({ person, asOfDate, targetDate }) => {
+  const asOf = startOfLocalDay(asOfDate);
+  const target = startOfLocalDay(targetDate);
+  if (target.getTime() === asOf.getTime()) {
+    return 1;
+  }
+  if (target < asOf) {
+    throw new Error('targetDate must be on or after asOfDate');
+  }
+
+  const birth = parseLocalIsoDate(person.birthDate);
+  let survival = 1;
+  let cursor = asOf;
+
+  while (cursor < target) {
+    const age = attainedWholeAge(birth, cursor);
+    const intervalEnd = birthdayAtAge(birth, age + 1);
+    const intervalDays = daysBetween(birthdayAtAge(birth, age), intervalEnd);
+    const stepEnd = target < intervalEnd ? target : intervalEnd;
+    const fraction = daysBetween(cursor, stepEnd) / intervalDays;
+    survival *= survivalForFraction(annualQx(person, age), fraction);
+    cursor = stepEnd;
+  }
+
+  return survival;
+};
+
+export const getIndividualLongevity = ({ person, asOfDate }) => {
+  const asOf = startOfLocalDay(asOfDate);
+  const birth = parseLocalIsoDate(person.birthDate);
+  const currentAge = attainedWholeAge(birth, asOf);
+  const curve = [];
+
+  if (currentAge >= 0 && currentAge <= MAX_SSA_AGE) {
+    const currentBirthday = birthdayAtAge(birth, currentAge);
+    curve.push({
+      age: currentAge,
+      date: currentBirthday,
+      year: currentBirthday.getFullYear(),
+      survival: 1
+    });
+  }
+
+  for (let age = currentAge + 1; age <= MAX_SSA_AGE; age += 1) {
+    const date = birthdayAtAge(birth, age);
+    curve.push({
+      age,
+      date,
+      year: date.getFullYear(),
+      survival: survivalToDate({ person, asOfDate: asOf, targetDate: date })
+    });
+  }
+
+  const thresholds = {};
+  const capped = {};
+  THRESHOLD_PROBABILITIES.forEach((probability) => {
+    const target = probability / 100;
+    let greatestAge = null;
+    curve.forEach((point) => {
+      if (point.survival >= target) {
+        greatestAge = point.age;
+      }
+    });
+    const exceedsDisplayCap = greatestAge != null && greatestAge > INDIVIDUAL_DISPLAY_CAP_AGE;
+    thresholds[probability] = exceedsDisplayCap ? INDIVIDUAL_DISPLAY_CAP_AGE : greatestAge;
+    capped[probability] = Boolean(exceedsDisplayCap);
+  });
+
+  return {
+    personId: person.personId,
+    name: person.name,
+    sex: person.sex,
+    birthDate: person.birthDate,
+    estimateType: 'ssa-population',
+    curve,
+    thresholds,
+    capped,
+    capYear: birthdayAtAge(birth, INDIVIDUAL_DISPLAY_CAP_AGE).getFullYear()
+  };
+};
