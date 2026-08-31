@@ -4,37 +4,27 @@ This directory is the offline, R-only data-engineering boundary for a future
 NHIS linked-mortality model. It does not fit or export production coefficients,
 and it adds no R dependency to the application backend.
 
-## Current status: blocked on the authorized source set
+## Current status: blocked for the 2004 cohort
 
-The pipeline infrastructure and synthetic tests are independently usable, but
-the requested canonical cohort cannot be built from **only** the official
-public-use NHIS Sample Adult files and the 2019 public-use NHIS Linked Mortality
-Files:
+The official Person files resolve the demographic, education, health, and
+survey-design gaps for 1997–2018. Official Person and Sample Adult identifiers
+join one-to-one for every Sample Adult in all 22 years, and 21 annual mappings
+produce canonical records.
 
-- Self-rated health is absent from every 1997–2018 Sample Adult SAS layout.
-- Education is present in the Sample Adult layouts for 1997–2003 and absent for
-  2004–2018.
-- The 2004 Sample Adult layout also omits age, sex, stratum, and PSU.
-- The official 2019 public-use **NHIS** LMF layout has no person-month follow-up
-  field. `PERMTH_INT` and `PERMTH_EXM` are in the NHANES layout, not the NHIS
-  layout.
+The official public-use 2004 Person and Sample Adult files contain no interview
+quarter or interview month. Because a quarter cannot be inferred from the
+documented public fields, the 2004 mapping remains explicitly blocked. The
+development and production-fit cohort configurations include 2004, so those
+full configured cohorts must not be built until an official quarter source is
+authorized or 2004 is explicitly removed by a future design decision.
 
-`config/variable-map.yml` records verified raw names and codes where they exist,
-uses explicit `null` values where they do not, and marks every annual cohort and
-the mortality mapping as blocked. `validate_year_mapping()` and
-`validate_lmf_mapping()` fail before reading data, so missing fields cannot be
-silently guessed or borrowed from an unauthorized component file.
-
-Resolving the boundary requires a reviewed source-scope change (most likely the
-official NHIS Person file for demographic, education, health, and design
-variables) plus a documented, approved follow-up derivation from the public-use
-death year/quarter fields, or a different authorized mortality release that
-contains follow-up duration. Do not remove the guards until that decision is
-made.
+Mortality timing uses only documented `DODYEAR` and `DODQTR` values. Living
+respondents are censored at 2019 Q4. No dates, person-month fields, or
+fractional exposure are invented.
 
 ## Official sources verified
 
-- NHIS 1997–2018 Sample Adult files and annual SAS input programs:
+- NHIS 1997–2018 Person and Sample Adult files and annual SAS input programs:
   `https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/{year}/`
   and
   `https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/{year}/`
@@ -70,17 +60,19 @@ The application and production backend do not run this environment.
 ## Pipeline modules
 
 - `R/load_inputs.R` validates maps, parses official SAS fixed-width layouts,
-  reads official ASCII/ZIP inputs, and reads the exact 42-column NHIS LMF
+  reads both official NHIS components, and reads the exact 42-column NHIS LMF
   public-use layout.
 - `R/harmonize.R` performs map-driven categorical recoding, rejects every
-  observed unmapped source code, builds the 14-character public identifier, and
-  pools annual weights without dropping stratum or PSU.
+  observed unmapped source code, enforces a one-to-one Person/Sample Adult
+  match on the official 14-character public identifier, and pools Sample Adult
+  weights without dropping Person-file stratum or PSU.
 - `R/impute.R` exposes a model-development-only, exactly-20-dataset `mice`
   boundary. Outcome, age, sex, year, weight, smoking, education, and health are
   included in the imputation model. Calibration and runtime records are
   rejected rather than imputed.
-- `R/person_year.R` expands records after delayed entry at age 60, retaining
-  fractional exposure and all survey-design/profile fields.
+- `R/person_quarter.R` expands inclusive interview-to-exit quarter indices,
+  marks death only in the documented death quarter, censors living respondents
+  at 2019 Q4, and retains survey-design/profile fields.
 
 No model fit, coefficient, calibration table, or runtime artifact is produced
 by this task.
@@ -103,7 +95,7 @@ docker run --rm \
   Rscript -e 'testthat::test_dir("tests/testthat")'
 ```
 
-The synthetic fixtures test strict category mapping, explicit missingness,
-pooled annual weights, delayed entry before age 60, censoring, death, fractional
-first/final intervals, exact-birthday death, zero follow-up, and propagation of
-weights, strata, and PSUs.
+The synthetic fixtures test strict component mapping, one-to-one joins, explicit
+missingness, pooled annual weights, alive censoring, later-quarter death,
+interview-quarter death, death-before-interview rejection, attained-age
+advancement, and propagation of weights, strata, PSUs, and profile fields.

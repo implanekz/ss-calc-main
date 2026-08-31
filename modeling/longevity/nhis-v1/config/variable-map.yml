@@ -1,8 +1,7 @@
-schema_version: 1
+schema_version: 2
 
-# These code lists are transcribed from the PROC FORMAT blocks in the official
-# annual NCHS Sample Adult SAS input programs. An unavailable source is null;
-# it is never replaced by a guessed name from another NHIS component file.
+# Field names and category codes below come from the INPUT and PROC FORMAT
+# blocks in the official annual NCHS SAS programs referenced by each year.
 definitions:
   sex: &sex
     source: SEX
@@ -10,6 +9,27 @@ definitions:
       male: ["1"]
       female: ["2"]
     missing_codes: []
+  education_1997_2003: &education_1997_2003
+    source: EDUC
+    codes:
+      college: ["18", "19", "20", "21"]
+      some: ["15", "16", "17"]
+      high_school: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"]
+    missing_codes: ["96", "97", "98", "99"]
+  education_2004_2018: &education_2004_2018
+    source: EDUC1
+    codes:
+      college: ["18", "19", "20", "21"]
+      some: ["15", "16", "17"]
+      high_school: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"]
+    missing_codes: ["96", "97", "98", "99"]
+  health: &health
+    source: PHSTAT
+    codes:
+      excellent: ["1", "2"]
+      good: ["3"]
+      fair: ["4", "5"]
+    missing_codes: ["7", "8", "9"]
   smoking: &smoking
     source: SMKSTAT2
     codes:
@@ -17,265 +37,286 @@ definitions:
       former: ["3"]
       current: ["1", "2"]
     missing_codes: ["5", "9"]
-  education: &education
-    source: EDUC
-    codes:
-      college: ["18", "19", "20", "21"]
-      some: ["15", "16", "17"]
-      high_school: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"]
-    missing_codes: ["96", "97", "98", "99"]
-  unavailable_health: &unavailable_health
-    source: null
-    codes: {}
-    missing_codes: []
+  person_1997_2003: &person_1997_2003
+    person_id: {source: [SRVY_YR, HHX, FMX, PX]}
+    interview_quarter: {source: INTV_QRT}
+    age_at_interview: {source: AGE_P}
+    sex: *sex
+    education: *education_1997_2003
+    self_rated_health: *health
+    stratum: {source: STRATUM}
+    psu: {source: PSU}
+  person_2004: &person_2004
+    person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
+    interview_quarter: {source: null}
+    age_at_interview: {source: AGE_P}
+    sex: *sex
+    education: *education_2004_2018
+    self_rated_health: *health
+    stratum: {source: STRATUM}
+    psu: {source: PSU}
+  person_2005: &person_2005
+    person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
+    interview_quarter: {source: INTV_QRT}
+    age_at_interview: {source: AGE_P}
+    sex: *sex
+    education: *education_2004_2018
+    self_rated_health: *health
+    stratum: {source: STRATUM}
+    psu: {source: PSU}
+  person_2006_2015: &person_2006_2015
+    person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
+    interview_quarter: {source: INTV_QRT}
+    age_at_interview: {source: AGE_P}
+    sex: *sex
+    education: *education_2004_2018
+    self_rated_health: *health
+    stratum: {source: STRAT_P}
+    psu: {source: PSU_P}
+  person_2016_2018: &person_2016_2018
+    person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
+    interview_quarter: {source: INTV_QRT}
+    age_at_interview: {source: AGE_P}
+    sex: *sex
+    education: *education_2004_2018
+    self_rated_health: *health
+    stratum: {source: PSTRAT}
+    psu: {source: PPSU}
+  sample_adult_1997_2003: &sample_adult_1997_2003
+    person_id: {source: [SRVY_YR, HHX, FMX, PX]}
+    smoking: *smoking
+    sample_weight: {source: WTFA_SA}
+  sample_adult_2004_2018: &sample_adult_2004_2018
+    person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
+    smoking: *smoking
+    sample_weight: {source: WTFA_SA}
 
 nhis:
   "1997":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1997/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1997/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1997/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1997/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1997/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1997/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "1998":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1998/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1998/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1998/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1998/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1998/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1998/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "1999":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1999/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1999/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1999/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1999/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1999/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1999/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "2000":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2000/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2000/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2000/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2000/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2000/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2000/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "2001":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2001/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2001/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2001/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "2002":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2002/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2002/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2002/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2002/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2002/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2002/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "2003":
-    status: blocked
-    blocked_reasons:
-      - "Self-rated health is not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2003/samadult/SAMADULT.DAT"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2003/SAMADULT.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, PX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: *education
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2003/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2003/PERSONSX.sas"
+      fields: *person_1997_2003
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2003/samadult/SAMADULT.DAT"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2003/SAMADULT.sas"
+      fields: *sample_adult_1997_2003
   "2004":
     status: blocked
     blocked_reasons:
-      - "Age, sex, education, self-rated health, stratum, and PSU are not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2004/sampleadult/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2004/sampleadult/samadult.sas"
-    fields:
-      person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
-      age_at_interview: {source: null}
-      sex: {source: null, codes: {}, missing_codes: []}
-      smoking: *smoking
-      education: {source: null, codes: {}, missing_codes: []}
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: null}
-      psu: {source: null}
+      - "The official public-use 2004 Person and Sample Adult files contain no interview-quarter field."
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2004/person/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2004/person/personsx.sas"
+      fields: *person_2004
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2004/sampleadult/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2004/sampleadult/samadult.sas"
+      fields: *sample_adult_2004_2018
   "2005":
-    status: blocked
-    blocked_reasons:
-      - "Education and self-rated health are not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2005/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2005/SAMADULT.sas"
-    fields: &nhis_2005_fields
-      person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: {source: null, codes: {}, missing_codes: []}
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRATUM}
-      psu: {source: PSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2005/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2005/PERSONSX.sas"
+      fields: *person_2005
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2005/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2005/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2006":
-    status: blocked
-    blocked_reasons: &post_2004_block
-      - "Education and self-rated health are not present in the official Sample Adult file."
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2006/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2006/SAMADULT.sas"
-    fields: &nhis_2006_fields
-      person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: {source: null, codes: {}, missing_codes: []}
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: STRAT_P}
-      psu: {source: PSU_P}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2006/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2006/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2006/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2006/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2007":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2007/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2007/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2007/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2007/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2007/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2007/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2008":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2008/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2008/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2008/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2008/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2008/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2008/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2009":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2009/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2009/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2009/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2009/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2009/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2009/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2010":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2010/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2010/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2010/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2010/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2010/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2010/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2011":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2011/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2011/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2011/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2011/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2011/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2011/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2012":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2012/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2012/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2012/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2012/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2012/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2012/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2013":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2013/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2013/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2013/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2013/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2013/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2013/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2014":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2014/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2014/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2014/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2014/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2014/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2014/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2015":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2015/SAMADULT.sas"
-    fields: *nhis_2006_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2015/PERSONSX.sas"
+      fields: *person_2006_2015
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2015/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2016":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2016/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2016/SAMADULT.sas"
-    fields: &nhis_2016_fields
-      person_id: {source: [SRVY_YR, HHX, FMX, FPX]}
-      age_at_interview: {source: AGE_P}
-      sex: *sex
-      smoking: *smoking
-      education: {source: null, codes: {}, missing_codes: []}
-      self_rated_health: *unavailable_health
-      sample_weight: {source: WTFA_SA}
-      stratum: {source: PSTRAT}
-      psu: {source: PPSU}
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2016/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2016/PERSONSX.sas"
+      fields: *person_2016_2018
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2016/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2016/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2017":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2017/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2017/SAMADULT.sas"
-    fields: *nhis_2016_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2017/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2017/PERSONSX.sas"
+      fields: *person_2016_2018
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2017/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2017/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
   "2018":
-    status: blocked
-    blocked_reasons: *post_2004_block
-    data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2018/samadult.zip"
-    sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2018/SAMADULT.sas"
-    fields: *nhis_2016_fields
+    status: ready
+    person:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2018/personsx.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2018/PERSONSX.sas"
+      fields: *person_2016_2018
+    sample_adult:
+      data_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2018/samadult.zip"
+      sas_url: "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2018/SAMADULT.sas"
+      fields: *sample_adult_2004_2018
 
 linked_mortality_2019:
-  status: blocked
-  blocked_reasons:
-    - "The official public-use NHIS LMF has no person-month follow-up field; PERMTH_INT and PERMTH_EXM appear only in the NHANES layout."
+  status: ready
   index_url: "https://www.cdc.gov/nchs/linked-data/mortality-files/index.html"
   description_url: "https://www.cdc.gov/nchs/data/datalinkage/public-use-linked-mortality-file-description.pdf"
   dictionary_url: "https://www.cdc.gov/nchs/data/datalinkage/public-use-linked-mortality-files-data-dictionary.pdf"
@@ -295,8 +336,9 @@ linked_mortality_2019:
       codes:
         alive: ["0"]
         deceased: ["1"]
-      missing_codes: [""]
-    followup_days: {source: null}
+      missing_codes: ["", "."]
+    death_quarter: {source: DODQTR}
+    death_year: {source: DODYEAR}
   verified_fixed_width_layout:
     PUBLICID: [1, 14]
     ELIGSTAT: [15, 15]

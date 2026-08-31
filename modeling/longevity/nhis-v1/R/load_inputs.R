@@ -1,8 +1,12 @@
-required_nhis_fields <- function() {
+required_person_fields <- function() {
   c(
-    "person_id", "age_at_interview", "sex", "smoking", "education",
-    "self_rated_health", "sample_weight", "stratum", "psu"
+    "person_id", "interview_quarter", "age_at_interview", "sex",
+    "education", "self_rated_health", "stratum", "psu"
   )
+}
+
+required_sample_adult_fields <- function() {
+  c("person_id", "smoking", "sample_weight")
 }
 
 mapping_has_source <- function(field) {
@@ -14,11 +18,21 @@ mapping_has_source <- function(field) {
 }
 
 validate_year_mapping <- function(mapping, year) {
-  fields <- mapping$fields
-  required <- required_nhis_fields()
-  missing <- required[
-    !vapply(required, function(name) mapping_has_source(fields[[name]]), logical(1))
-  ]
+  requirements <- list(
+    person = required_person_fields(),
+    sample_adult = required_sample_adult_fields()
+  )
+  missing <- unlist(lapply(names(requirements), function(component) {
+    fields <- mapping[[component]]$fields
+    absent <- requirements[[component]][
+      !vapply(
+        requirements[[component]],
+        function(name) mapping_has_source(fields[[name]]),
+        logical(1)
+      )
+    ]
+    if (length(absent) == 0L) character() else paste0(component, ".", absent)
+  }), use.names = FALSE)
 
   if (length(missing) > 0L) {
     stop(
@@ -31,13 +45,20 @@ validate_year_mapping <- function(mapping, year) {
     )
   }
 
-  categorical <- c("sex", "smoking", "education", "self_rated_health")
-  missing_codes <- categorical[
-    !vapply(categorical, function(name) {
-      codes <- fields[[name]]$codes
-      !is.null(codes) && length(codes) > 0L
-    }, logical(1))
-  ]
+  categorical <- list(
+    person = c("sex", "education", "self_rated_health"),
+    sample_adult = "smoking"
+  )
+  missing_codes <- unlist(lapply(names(categorical), function(component) {
+    fields <- mapping[[component]]$fields
+    absent <- categorical[[component]][
+      !vapply(categorical[[component]], function(name) {
+        codes <- fields[[name]]$codes
+        !is.null(codes) && length(codes) > 0L
+      }, logical(1))
+    ]
+    if (length(absent) == 0L) character() else paste0(component, ".", absent)
+  }), use.names = FALSE)
   if (length(missing_codes) > 0L) {
     stop(
       sprintf(
@@ -53,7 +74,10 @@ validate_year_mapping <- function(mapping, year) {
 }
 
 validate_lmf_mapping <- function(mapping) {
-  required <- c("person_id", "mortality_eligibility", "mortality_status", "followup_days")
+  required <- c(
+    "person_id", "mortality_eligibility", "mortality_status",
+    "death_year", "death_quarter"
+  )
   missing <- required[
     !vapply(required, function(name) mapping_has_source(mapping$fields[[name]]), logical(1))
   ]
@@ -160,12 +184,10 @@ mapped_source_names <- function(mapping) {
   unique(unlist(lapply(mapping$fields, function(field) field$source), use.names = FALSE))
 }
 
-read_nhis_input <- function(path, sas_layout_path, mapping, year) {
-  validate_year_mapping(mapping, year)
-
+read_nhis_component_input <- function(path, sas_layout_path, component_mapping) {
   if (grepl("\\.(zip|dat|txt|asc)$", path, ignore.case = TRUE)) {
     layout <- parse_sas_fixed_width_layout(sas_layout_path)
-    return(read_fixed_width_columns(path, layout, mapped_source_names(mapping)))
+    return(read_fixed_width_columns(path, layout, mapped_source_names(component_mapping)))
   }
   if (grepl("\\.csv$", path, ignore.case = TRUE)) {
     return(utils::read.csv(path, colClasses = "character", check.names = FALSE))
@@ -199,12 +221,28 @@ read_lmf_input <- function(path) {
   read_fixed_width_columns(path, layout, layout$source)
 }
 
-load_year_inputs <- function(nhis_path, sas_layout_path, lmf_path, variable_map, year) {
-  nhis_mapping <- get_year_mapping(variable_map, year)
+load_year_inputs <- function(
+    person_path,
+    person_sas_layout_path,
+    sample_adult_path,
+    sample_adult_sas_layout_path,
+    lmf_path,
+    variable_map,
+    year) {
+  annual_mapping <- get_year_mapping(variable_map, year)
   validate_lmf_mapping(variable_map$linked_mortality_2019)
 
   list(
-    nhis = read_nhis_input(nhis_path, sas_layout_path, nhis_mapping, year),
+    person = read_nhis_component_input(
+      person_path,
+      person_sas_layout_path,
+      annual_mapping$person
+    ),
+    sample_adult = read_nhis_component_input(
+      sample_adult_path,
+      sample_adult_sas_layout_path,
+      annual_mapping$sample_adult
+    ),
     mortality = read_lmf_input(lmf_path)
   )
 }

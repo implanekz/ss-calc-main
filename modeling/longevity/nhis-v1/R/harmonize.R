@@ -47,18 +47,6 @@ recode_mapped_field <- function(values, field, canonical_name) {
   result
 }
 
-harmonize_health <- function(rows, mapping) {
-  fields <- mapping$fields
-  canonical <- c("sex", "smoking", "education", "self_rated_health")
-  output <- lapply(canonical, function(name) {
-    field <- fields[[name]]
-    values <- source_column(rows, field, name)
-    recode_mapped_field(values, field, name)
-  })
-  names(output) <- canonical
-  as.data.frame(output, stringsAsFactors = FALSE)
-}
-
 compose_person_id <- function(rows, field) {
   sources <- as.character(field$source)
   if (length(sources) == 0L || any(!sources %in% names(rows))) {
@@ -70,6 +58,29 @@ compose_person_id <- function(rows, field) {
   }
   parts <- lapply(sources, function(name) trimws(as.character(rows[[name]])))
   do.call(paste0, parts)
+}
+
+join_person_sample_adult <- function(person_rows, sample_adult_rows, mapping) {
+  person_ids <- compose_person_id(person_rows, mapping$person$fields$person_id)
+  adult_ids <- compose_person_id(sample_adult_rows, mapping$sample_adult$fields$person_id)
+
+  if (anyDuplicated(person_ids)) {
+    stop("Person identifiers must be unique before the Person/Sample Adult join.", call. = FALSE)
+  }
+  if (anyDuplicated(adult_ids)) {
+    stop("Sample Adult identifiers must be unique before the Person/Sample Adult join.", call. = FALSE)
+  }
+
+  person_index <- match(adult_ids, person_ids)
+  if (anyNA(person_index)) {
+    stop("A Sample Adult identifier does not match exactly one Person record.", call. = FALSE)
+  }
+
+  list(
+    person_id = adult_ids,
+    person = person_rows[person_index, , drop = FALSE],
+    sample_adult = sample_adult_rows
+  )
 }
 
 pool_weights <- function(rows) {
@@ -86,20 +97,68 @@ pool_weights <- function(rows) {
   weights / year_counts
 }
 
-harmonize_nhis <- function(rows, mapping, year, pool_year_count) {
+harmonize_nhis <- function(
+    person_rows,
+    sample_adult_rows,
+    mapping,
+    year,
+    pool_year_count) {
   if (exists("validate_year_mapping", mode = "function")) {
     validate_year_mapping(mapping, year)
   }
-  fields <- mapping$fields
-  health <- harmonize_health(rows, mapping)
+  joined <- join_person_sample_adult(person_rows, sample_adult_rows, mapping)
+  person_fields <- mapping$person$fields
+  adult_fields <- mapping$sample_adult$fields
+
+  interview_quarter <- as.integer(source_column(
+    joined$person,
+    person_fields$interview_quarter,
+    "interview_quarter"
+  ))
+  if (anyNA(interview_quarter) || any(!interview_quarter %in% 1:4)) {
+    stop("Interview quarter must be explicitly coded 1 through 4.", call. = FALSE)
+  }
+
   output <- data.frame(
-    person_id = compose_person_id(rows, fields$person_id),
+    person_id = joined$person_id,
     survey_year = as.integer(year),
-    age_at_interview = as.numeric(source_column(rows, fields$age_at_interview, "age_at_interview")),
-    health,
-    sample_weight = as.numeric(source_column(rows, fields$sample_weight, "sample_weight")),
-    stratum = source_column(rows, fields$stratum, "stratum"),
-    psu = source_column(rows, fields$psu, "psu"),
+    interview_quarter = interview_quarter,
+    age_at_interview = as.numeric(source_column(
+      joined$person,
+      person_fields$age_at_interview,
+      "age_at_interview"
+    )),
+    sex = recode_mapped_field(
+      source_column(joined$person, person_fields$sex, "sex"),
+      person_fields$sex,
+      "sex"
+    ),
+    smoking = recode_mapped_field(
+      source_column(joined$sample_adult, adult_fields$smoking, "smoking"),
+      adult_fields$smoking,
+      "smoking"
+    ),
+    education = recode_mapped_field(
+      source_column(joined$person, person_fields$education, "education"),
+      person_fields$education,
+      "education"
+    ),
+    self_rated_health = recode_mapped_field(
+      source_column(
+        joined$person,
+        person_fields$self_rated_health,
+        "self_rated_health"
+      ),
+      person_fields$self_rated_health,
+      "self_rated_health"
+    ),
+    sample_weight = as.numeric(source_column(
+      joined$sample_adult,
+      adult_fields$sample_weight,
+      "sample_weight"
+    )),
+    stratum = source_column(joined$person, person_fields$stratum, "stratum"),
+    psu = source_column(joined$person, person_fields$psu, "psu"),
     pool_year_count = as.integer(pool_year_count),
     stringsAsFactors = FALSE,
     check.names = FALSE
@@ -123,6 +182,22 @@ harmonize_lmf <- function(rows, mapping) {
     fields$mortality_status,
     "mortality_status"
   )
+  death_year <- suppressWarnings(as.integer(
+    source_column(rows, fields$death_year, "death_year")
+  ))
+  death_quarter <- suppressWarnings(as.integer(
+    source_column(rows, fields$death_quarter, "death_quarter")
+  ))
+  deceased <- !is.na(mortality) & mortality == "deceased"
+  if (
+    any(deceased & is.na(death_year)) ||
+    any(deceased & (is.na(death_quarter) | !death_quarter %in% 1:4))
+  ) {
+    stop("Deceased records require documented death year and quarter.", call. = FALSE)
+  }
+  death_year[!deceased | is.na(deceased)] <- NA_integer_
+  death_quarter[!deceased | is.na(deceased)] <- NA_integer_
+
   data.frame(
     person_id = as.character(source_column(rows, fields$person_id, "person_id")),
     mortality_eligibility = eligibility,
@@ -131,7 +206,8 @@ harmonize_lmf <- function(rows, mapping) {
       NA_integer_,
       ifelse(mortality == "deceased", 1L, 0L)
     ),
-    followup_days = as.numeric(source_column(rows, fields$followup_days, "followup_days")),
+    death_year = death_year,
+    death_quarter = death_quarter,
     stringsAsFactors = FALSE
   )
 }
@@ -149,6 +225,10 @@ join_nhis_mortality <- function(nhis, mortality) {
   }
   cbind(
     nhis,
-    mortality[match_index, c("mortality_eligibility", "mortality_status", "followup_days"), drop = FALSE]
+    mortality[
+      match_index,
+      c("mortality_eligibility", "mortality_status", "death_year", "death_quarter"),
+      drop = FALSE
+    ]
   )
 }
