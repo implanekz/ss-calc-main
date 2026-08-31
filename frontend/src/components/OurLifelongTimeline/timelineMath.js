@@ -1,17 +1,20 @@
 import { calculateProjection, combineProjections } from '../../calculators/showMeTheMoney/projections';
 import { getFra } from '../../utils/benefitFormulas';
 
-// How far past the later-born spouse's birth year the shared calendar axis extends.
-// Must match the last age calculateProjection() actually has data for (birthYear + 95,
-// see projections.js) -- extending past that renders a data gap as a silent $0.
-export const AXIS_END_AGE = 95;
-
 export const ageToCalendarYear = (birthYear, age) => birthYear + age;
 
 export const calendarYearToAge = (birthYear, year) => year - birthYear;
 
-export const getAxisEndYear = (birthYearPrimary, birthYearSpouse) =>
-  Math.max(birthYearPrimary, birthYearSpouse) + AXIS_END_AGE;
+export const getAxisEndYear = ({ birthYears = [], longevitySummary } = {}) => {
+  if (longevitySummary?.axisEndYear != null) {
+    return longevitySummary.axisEndYear;
+  }
+  const years = birthYears.filter((year) => Number.isFinite(year));
+  if (years.length === 0) {
+    return null;
+  }
+  return Math.max(...years) + 95;
+};
 
 // The two claiming-strategy extremes shown in the timeline cursor's tooltip, alongside the
 // household's actual/preferred scenario (shown separately, not as a third fixed hypothetical --
@@ -26,33 +29,43 @@ export const getHouseholdBucket = ({
   spouse2Dob,
   inflation,
   prematureDeath = false,
-  deathYear
+  deathYear,
+  endYear,
+  isMarried = Boolean(spouse2Dob)
 }) => {
   const primaryProjection = calculateProjection({
     pia: spouse1Pia,
     dob: spouse1Dob,
     filingYear: filingAge,
     filingMonth: 0,
-    inflationRate: inflation
+    inflationRate: inflation,
+    endYear
   });
-  const spouseProjection = calculateProjection({
-    pia: spouse2Pia,
-    dob: spouse2Dob,
-    filingYear: filingAge,
-    filingMonth: 0,
-    inflationRate: inflation
-  });
+  const spouseProjection = isMarried && spouse2Dob
+    ? calculateProjection({
+      pia: spouse2Pia,
+      dob: spouse2Dob,
+      filingYear: filingAge,
+      filingMonth: 0,
+      inflationRate: inflation,
+      endYear
+    })
+    : null;
   const combined = combineProjections({
     primaryProjection,
     spouseProjection,
-    isMarried: true,
+    isMarried: Boolean(spouseProjection),
     prematureDeath,
     deathYear
   });
 
   // Derive startYear from the same birthYear values that calculateProjection() used for its dictionary keys.
   // This ensures the mask boundary always aligns with the actual calendar years in the .monthly/.cumulative dictionaries.
-  const startYear = Math.max(primaryProjection.birthYear, spouseProjection.birthYear) + filingAge;
+  const startYear = (
+    spouseProjection
+      ? Math.max(primaryProjection.birthYear, spouseProjection.birthYear)
+      : primaryProjection.birthYear
+  ) + filingAge;
 
   // combined.cumulative already correctly accounts for each spouse's own partial first
   // claiming year (calculateProjection discounts it, and combineProjections preserves that
@@ -89,7 +102,9 @@ export const getHouseholdBuckets = ({
   spouse2Dob,
   inflation,
   prematureDeath = false,
-  deathYear
+  deathYear,
+  endYear,
+  isMarried = Boolean(spouse2Dob)
 }) =>
   BUCKET_FILING_AGES.map((filingAge) => ({
     filingAge,
@@ -101,7 +116,9 @@ export const getHouseholdBuckets = ({
       spouse2Dob,
       inflation,
       prematureDeath,
-      deathYear
+      deathYear,
+      endYear,
+      isMarried
     })
   }));
 
@@ -145,8 +162,7 @@ export const getMilestonesForPerson = ({ label, dob, preferredYear }) => {
   return milestones.sort((a, b) => a.year - b.year);
 };
 
-export const isTimelineReachable = ({ isMarried, spouse1Dob, spouse2Dob }) =>
-  Boolean(isMarried && spouse1Dob && spouse2Dob);
+export const isTimelineReachable = ({ spouse1Dob }) => Boolean(spouse1Dob);
 
 const MILESTONE_DO_LINES = {
   age62: 'This is the earliest possible filing age — the smallest benefit this household could lock in.',
@@ -162,12 +178,14 @@ export const buildNarrative = ({
   spouseLabel,
   spouseAge,
   primaryMilestones,
-  spouseMilestones,
+  spouseMilestones = [],
   monthlyIncome,
   prematureDeath,
   deathYear
 }) => {
-  const feel = `${year}: ${primaryLabel} is ${primaryAge}, ${spouseLabel} is ${spouseAge}.`;
+  const feel = spouseLabel
+    ? `${year}: ${primaryLabel} is ${primaryAge}, ${spouseLabel} is ${spouseAge}.`
+    : `${year}: ${primaryLabel} is ${primaryAge}.`;
   const think = `${formatCurrency(monthlyIncome)}/month · ${formatCurrency(getAnnualIncome(monthlyIncome))}/year`;
 
   // Order matters: primary's milestones are checked first, so when both people land a
@@ -185,8 +203,10 @@ export const buildNarrative = ({
   return { feel, milestoneNotes, think, doLine, survivorNote };
 };
 
-export const buildFilingComparisonBoxes = ({ buckets, year, think, cumulativeIncome }) => {
+export const buildFilingComparisonBoxes = ({ buckets, year, think, cumulativeIncome, couple = true }) => {
   const [bucket62, bucket70] = buckets;
+  const age70Label = couple ? 'If both filed at 70' : 'If you filed at 70';
+  const age62Label = couple ? 'If both filed at 62' : 'If you filed at 62';
 
   const bucketBox = (bucket, label) => {
     const { display: cumulativeDisplay, muted } = formatBucketValue(bucket, year);
@@ -203,8 +223,8 @@ export const buildFilingComparisonBoxes = ({ buckets, year, think, cumulativeInc
   };
 
   return [
-    bucketBox(bucket70, 'If both filed at 70'),
-    bucketBox(bucket62, 'If both filed at 62'),
+    bucketBox(bucket70, age70Label),
+    bucketBox(bucket62, age62Label),
     { label: 'Your Plan', bigText: think, smallText: formatCurrency(cumulativeIncome), muted: false }
   ];
 };

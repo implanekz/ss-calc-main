@@ -1,4 +1,4 @@
-import { ageToCalendarYear, calendarYearToAge, getAxisEndYear, AXIS_END_AGE, getHouseholdBucket, getHouseholdBuckets, BUCKET_FILING_AGES, formatCurrency, formatBucketValue, getAnnualIncome, getMilestonesForPerson, isTimelineReachable, buildNarrative } from './timelineMath';
+import { ageToCalendarYear, calendarYearToAge, getAxisEndYear, getHouseholdBucket, getHouseholdBuckets, BUCKET_FILING_AGES, formatCurrency, formatBucketValue, getAnnualIncome, getMilestonesForPerson, isTimelineReachable, buildNarrative } from './timelineMath';
 import { calculateProjection, combineProjections } from '../../calculators/showMeTheMoney/projections';
 import { buildFilingComparisonBoxes } from './timelineMath';
 
@@ -13,37 +13,38 @@ describe('age/calendar-year conversion', () => {
     expect(calendarYearToAge(1970, 2032)).toBe(62);
   });
 
-  test('axis end year is 95 for the later-born spouse, regardless of argument order', () => {
-    expect(AXIS_END_AGE).toBe(95);
-    expect(getAxisEndYear(1965, 1970)).toBe(2065);
-    expect(getAxisEndYear(1970, 1965)).toBe(2065);
+  test('axis end year uses the longevity summary when provided', () => {
+    expect(getAxisEndYear({
+      birthYears: [1965, 1970],
+      longevitySummary: { axisEndYear: 2070 }
+    })).toBe(2070);
+  });
+
+  test('axis end year falls back to later-born plus 95 without a summary', () => {
+    expect(getAxisEndYear({ birthYears: [1965, 1970] })).toBe(2065);
+    expect(getAxisEndYear({ birthYears: [1970, 1965] })).toBe(2065);
   });
 
   test('axis end year works when both spouses share a birth year', () => {
-    expect(getAxisEndYear(1965, 1965)).toBe(2060);
+    expect(getAxisEndYear({ birthYears: [1965, 1965] })).toBe(2060);
   });
 
-  test('axis end year never exceeds the last year calculateProjection() actually has data for', () => {
-    // Regression test for a real bug: AXIS_END_AGE used to be 100, but calculateProjection()'s
-    // .monthly/.cumulative dictionaries only have keys through birthYear + 95 (see projections.js).
-    // If the axis ever extends past that, the timeline silently renders the missing years as $0
-    // instead of showing that there's no data there.
-    const birthYearPrimary = 1965;
-    const birthYearSpouse = 1970;
-
+  test('axis end year never exceeds the last year of projection data for that horizon', () => {
+    const axisEndYear = getAxisEndYear({
+      birthYears: [1965, 1970],
+      longevitySummary: { axisEndYear: 2070 }
+    });
     const projection = calculateProjection({
       pia: 2000,
       dob: '1970-06-15',
       filingYear: 62,
       filingMonth: 0,
-      inflationRate: 0
+      inflationRate: 0,
+      endYear: axisEndYear
     });
     const lastYearWithData = Math.max(...Object.keys(projection.monthly).map(Number));
-
-    expect(getAxisEndYear(birthYearPrimary, birthYearSpouse)).toBe(lastYearWithData);
-    expect(getAxisEndYear(birthYearPrimary, birthYearSpouse)).toBeLessThanOrEqual(
-      Math.max(birthYearPrimary, birthYearSpouse) + 95
-    );
+    expect(axisEndYear).toBe(lastYearWithData);
+    expect(projection.monthly[axisEndYear]).toBeDefined();
   });
 });
 
@@ -299,11 +300,10 @@ describe('life-stage milestones', () => {
   });
 });
 
-describe('couples-only reachability', () => {
-  test('reachable only when married with both DOBs present', () => {
-    expect(isTimelineReachable({ isMarried: true, spouse1Dob: '1965-01-01', spouse2Dob: '1970-01-01' })).toBe(true);
-    expect(isTimelineReachable({ isMarried: false, spouse1Dob: '1965-01-01', spouse2Dob: '1970-01-01' })).toBe(false);
-    expect(isTimelineReachable({ isMarried: true, spouse1Dob: '1965-01-01', spouse2Dob: null })).toBe(false);
+describe('timeline reachability', () => {
+  test('a person with a date of birth can open the timeline', () => {
+    expect(isTimelineReachable({ isMarried: false, spouse1Dob: '1965-01-01', spouse2Dob: null })).toBe(true);
+    expect(isTimelineReachable({ isMarried: true, spouse1Dob: '1965-01-01', spouse2Dob: null })).toBe(true);
     expect(isTimelineReachable({ isMarried: true, spouse1Dob: '', spouse2Dob: '1970-01-01' })).toBe(false);
   });
 });
@@ -508,5 +508,21 @@ describe('buildFilingComparisonBoxes', () => {
       smallText: '$21,000',
       muted: false
     });
+  });
+
+  test('single-person labels drop both-filed copy', () => {
+    const buckets = getHouseholdBuckets({
+      ...household,
+      spouse2Dob: null,
+      isMarried: false
+    });
+    const boxes = buildFilingComparisonBoxes({
+      buckets,
+      year: 2032,
+      think: '$1,750/month · $21,000/year',
+      cumulativeIncome: 21000,
+      couple: false
+    });
+    expect(boxes.map((b) => b.label)).toEqual(['If you filed at 70', 'If you filed at 62', 'Your Plan']);
   });
 });

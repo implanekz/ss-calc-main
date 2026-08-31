@@ -117,4 +117,28 @@ describe('show me the money projections', () => {
     expect(combined.monthly[2031]).toBe(2100);
     expect(combined.cumulative[2031]).toBe(61200);
   });
+
+  test('explicit endYear produces financial data through the final displayed year', () => {
+    const projection = calculateProjection({
+      pia: 2500,
+      dob: '1965-06-15',
+      filingYear: 67,
+      inflationRate: 0.025,
+      asOfDate: new Date(2026, 7, 31),
+      endYear: 2070
+    });
+    expect(Object.keys(projection.monthly).map(Number).at(-1)).toBe(2070);
+    expect(projection.cumulative[2070]).toBeGreaterThan(projection.cumulative[2069]);
+  });
+
+  test('default horizon remains age 95 for existing callers', () => {
+    const projection = calculateProjection({
+      pia: 2500,
+      dob: '1965-06-15',
+      filingYear: 67,
+      inflationRate: 0.025,
+      asOfDate: new Date(2026, 7, 31)
+    });
+    expect(Object.keys(projection.monthly).map(Number).at(-1)).toBe(2060);
+  });
 });
