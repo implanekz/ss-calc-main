@@ -1,8 +1,13 @@
 # NHIS Linked Mortality Cohort Boundary (v1)
 
-This directory is the offline, R-only data-engineering boundary for a future
-NHIS linked-mortality model. It does not fit or export production coefficients,
-and it adds no R dependency to the application backend.
+This directory is the offline, R-only NHIS linked-mortality modeling pipeline.
+It fits, temporally validates, calibrates to SSA 2023, and exports a versioned
+runtime artifact. The application backend does not run this environment.
+
+The locked version-one formula is a survey-weighted person-quarter complementary
+log-log model with main effects only. Production coefficients are exported only
+after temporal-validation gates pass. The 2010–2013 validation for
+`nhis-lmf-2019-v1` is committed in `validation/temporal-validation-v1.json`.
 
 ## 2004 is excluded from configured cohorts
 
@@ -65,16 +70,30 @@ The application and production backend do not run this environment.
   observed unmapped source code, enforces a one-to-one Person/Sample Adult
   match on the official 14-character public identifier, and pools Sample Adult
   weights without dropping Person-file stratum or PSU.
-- `R/impute.R` exposes a model-development-only, exactly-20-dataset `mice`
-  boundary. Outcome, age, sex, year, weight, smoking, education, and health are
-  included in the imputation model. Calibration and runtime records are
-  rejected rather than imputed.
+- `R/impute.R` exposes an exactly-20-dataset `mice` boundary for development and
+  production-fit records. Outcome, age, sex, year, weight, smoking, education,
+  and health are included in the imputation model. Calibration and runtime
+  records are rejected rather than imputed.
 - `R/person_quarter.R` expands inclusive interview-to-exit quarter indices,
   marks death only in the documented death quarter, censors living respondents
   at 2019 Q4, and retains survey-design/profile fields.
+- `R/fit_model.R` fits the locked cloglog formula on each imputation, pooling
+  coefficients with Rubin's rules.
+- `R/validate_model.R` scores the untouched development model on 2010–2013
+  interviews at 4, 12, and 20 observed quarters.
+- `R/calibrate_ssa.R` solves age/sex baseline hazards so weighted profile `qx`
+  matches SSA `qx` within `1e-10`.
+- `R/export_artifact.R` writes the runtime JSON from pipeline outputs.
+- `run_pipeline.R` is the deterministic entry point.
 
-No model fit, coefficient, calibration table, or runtime artifact is produced
-by this task.
+```bash
+Rscript run_pipeline.R \
+  --cohorts config/cohorts.yml \
+  --variables config/variable-map.yml \
+  --ssa ../../../frontend/src/data/mortality/ssa-period-life-table-2023.json \
+  --artifact ../../../frontend/src/data/mortality/nhis-personalization-v1.json \
+  --validation validation/temporal-validation-v1.json
+```
 
 ## Tests
 

@@ -74,14 +74,37 @@ expand_person_quarter_dataset <- function(rows) {
   if (length(missing) > 0L) {
     stop(sprintf("Input is missing: %s", paste(missing, collapse = ", ")), call. = FALSE)
   }
+  n <- nrow(rows)
+  if (n == 0L) {
+    return(rows[0, , drop = FALSE])
+  }
 
-  metadata_names <- setdiff(names(rows), core)
-  expanded <- lapply(seq_len(nrow(rows)), function(index) {
-    person_quarters <- expand_person_quarters(rows[index, , drop = FALSE])
-    for (name in metadata_names) {
-      person_quarters[[name]] <- rep(rows[[name]][[index]], nrow(person_quarters))
-    }
-    person_quarters
-  })
-  do.call(rbind, expanded)
+  status <- as.integer(rows$mortality_status)
+  if (anyNA(status) || any(!status %in% c(0L, 1L))) {
+    stop("mortality_status must be 0 or 1.", call. = FALSE)
+  }
+  entry <- quarter_index(rows$survey_year, rows$interview_quarter)
+  deceased <- status == 1L
+  exit <- rep.int(quarter_index(2019L, 4L), n)
+  if (any(deceased)) {
+    exit[deceased] <- quarter_index(rows$death_year[deceased], rows$death_quarter[deceased])
+  }
+  before <- exit < entry
+  if (any(before & deceased)) {
+    stop("Recorded death quarter precedes interview quarter.", call. = FALSE)
+  }
+  if (any(before & !deceased)) {
+    stop("Interview quarter is after the 2019 Q4 follow-up end.", call. = FALSE)
+  }
+
+  lengths <- as.integer(exit - entry + 1L)
+  idx <- rep.int(seq_len(n), lengths)
+  offset <- sequence(lengths) - 1L
+  expanded <- rows[idx, , drop = FALSE]
+  expanded$quarter_index <- as.integer(entry[idx] + offset)
+  expanded$quarters_since_interview <- as.integer(offset)
+  expanded$attained_age <- as.integer(expanded$age_at_interview) + as.integer(floor(offset / 4))
+  expanded$event <- as.integer(expanded$quarter_index == exit[idx] & deceased[idx])
+  rownames(expanded) <- NULL
+  expanded
 }
