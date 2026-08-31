@@ -4,19 +4,18 @@ This directory is the offline, R-only data-engineering boundary for a future
 NHIS linked-mortality model. It does not fit or export production coefficients,
 and it adds no R dependency to the application backend.
 
-## Current status: blocked for the 2004 cohort
+## 2004 is excluded from configured cohorts
 
 The official Person files resolve the demographic, education, health, and
 survey-design gaps for 1997–2018. Official Person and Sample Adult identifiers
-join one-to-one for every Sample Adult in all 22 years, and 21 annual mappings
-produce canonical records.
+join one-to-one for every Sample Adult in all 22 years.
 
-The official public-use 2004 Person and Sample Adult files contain no interview
-quarter or interview month. Because a quarter cannot be inferred from the
-documented public fields, the 2004 mapping remains explicitly blocked. The
-development and production-fit cohort configurations include 2004, so those
-full configured cohorts must not be built until an official quarter source is
-authorized or 2004 is explicitly removed by a future design decision.
+The official 2004 Person and Sample Adult SAS layouts contain no `INTV_QRT`
+(and no interview month). The 2004 map therefore keeps
+`interview_quarter: {source: null}` so the loader still rejects that year
+instead of inventing a quarter. `config/cohorts.yml` omits 2004 from
+`development` and `production_fit`. Cohort assembly also keeps only respondents
+with `age_at_interview >= minimum_age` (60).
 
 Mortality timing uses only documented `DODYEAR` and `DODQTR` values. Living
 respondents are censored at 2019 Q4. No dates, person-month fields, or

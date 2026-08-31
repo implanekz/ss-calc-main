@@ -287,3 +287,25 @@ test_that("imputation is restricted to model-development records", {
     "restricted to model-development records"
   )
 })
+
+test_that("development and production_fit year lists do not include 2004", {
+  skip_if_not_installed("yaml")
+  cohorts <- yaml::read_yaml(test_path("..", "..", "config", "cohorts.yml"))
+
+  expect_false(2004 %in% cohorts$development$interview_years)
+  expect_false(2004 %in% cohorts$production_fit$interview_years)
+})
+
+test_that("cohort assembly keeps age 60 and drops younger respondents", {
+  rows <- data.frame(
+    person_id = c("under-age", "floor-age"),
+    age_at_interview = c(59, 60),
+    stringsAsFactors = FALSE
+  )
+  cohort <- list(minimum_age = 60)
+
+  kept <- select_cohort_respondents(rows, cohort)
+
+  expect_equal(kept$person_id, "floor-age")
+  expect_equal(kept$age_at_interview, 60)
+})

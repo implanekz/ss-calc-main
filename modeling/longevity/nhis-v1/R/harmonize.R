@@ -232,3 +232,15 @@ join_nhis_mortality <- function(nhis, mortality) {
     ]
   )
 }
+
+select_cohort_respondents <- function(rows, cohort) {
+  if (!is.data.frame(rows) || !"age_at_interview" %in% names(rows)) {
+    stop("rows must include age_at_interview.", call. = FALSE)
+  }
+  minimum_age <- suppressWarnings(as.numeric(cohort$minimum_age))
+  if (length(minimum_age) != 1L || is.na(minimum_age)) {
+    stop("Cohort is missing a finite minimum_age.", call. = FALSE)
+  }
+  ages <- as.numeric(rows$age_at_interview)
+  rows[!is.na(ages) & ages >= minimum_age, , drop = FALSE]
+}
