@@ -15,6 +15,9 @@ const INDIVIDUAL_COPY = (probability, name, age) =>
 const MODEL_PENDING_NOTE =
   'Health questions are collected for personalization. SSA population estimates are shown until the NHIS model is released.';
 
+const DEVELOPMENT_MODEL_NOTE =
+  'This development NHIS model missed the calibration-slope validation gate. Results move with smoking, education, and health, but they are not an official SSA estimate.';
+
 const peopleFromSummary = (summary) => Object.values(summary.individuals || {});
 
 const joinWithAnd = (parts) => {
@@ -68,12 +71,17 @@ export const buildHouseholdExplanation = (summary) => {
     return null;
   }
 
+  const asOfYear = summary.asOfDate instanceof Date
+    ? summary.asOfDate.getFullYear()
+    : null;
   const intros = people.map((person) => {
-    const age = summary.asOfDate ? attainedWholeAge(person.birthDate, summary.asOfDate) : null;
+    const age = Number.isFinite(person.currentAge)
+      ? person.currentAge
+      : (summary.asOfDate ? attainedWholeAge(person.birthDate, summary.asOfDate) : null);
     return age == null ? person.name : `${person.name} age ${age}`;
   }).join(', ');
   const longer = longerLivedPerson(people);
-  const namesAndAges50 = formatNamesAndAges({ people, year: year50 });
+  const namesAndAges50 = formatNamesAndAges({ people, year: year50, asOfYear });
   const longerAge50 = longer?.thresholds?.[50];
   const longerYear50 = longer
     ? new Date(`${longer.birthDate}T12:00:00`).getFullYear() + longerAge50
@@ -88,10 +96,13 @@ export const buildHouseholdExplanation = (summary) => {
 
 const buildHouseholdCards = (summary) => {
   const people = peopleFromSummary(summary);
+  const asOfYear = summary.asOfDate instanceof Date
+    ? summary.asOfDate.getFullYear()
+    : null;
   return [75, 50, 25].map((probability) => {
     const capped = Boolean(summary.household.capped?.[probability]);
     const year = capped ? summary.household.capYear : summary.household.thresholds[probability];
-    const namesAndAges = formatNamesAndAges({ people, year });
+    const namesAndAges = formatNamesAndAges({ people, year, asOfYear });
     return {
       probability,
       year: summary.household.thresholds[probability],
@@ -131,11 +142,15 @@ export const buildLifeExpectancyPresentation = (summary) => {
     && people.every((person) => person.estimateType === 'personalized');
   const allComplete = people.length > 0
     && people.every((person) => isCompleteLongevityProfile(person.profile));
+  const developmentPersonalized = allPersonalized
+    && people.some((person) => person.sourceDisclosure?.includes('missed the calibration-slope'));
   const estimateLabel = allPersonalized
-    ? 'Personalized estimate'
+    ? (developmentPersonalized ? 'Development personalization' : 'Personalized estimate')
     : 'SSA population estimate';
   const unansweredHint = formatUnansweredHint(people);
-  const modelPendingNote = allComplete && !allPersonalized ? MODEL_PENDING_NOTE : null;
+  const modelPendingNote = developmentPersonalized
+    ? DEVELOPMENT_MODEL_NOTE
+    : (allComplete && !allPersonalized ? MODEL_PENDING_NOTE : null);
   const sourceDisclosure = primary?.sourceDisclosure
     || 'SSA 2023 period life table. Population estimate based on age and sex, using 2023 mortality rates without projected future improvement.';
 
@@ -158,7 +173,9 @@ export const buildLifeExpectancyPresentation = (summary) => {
       const row = { year: point.year, eitherAlive: point.eitherAlive };
       people.forEach((person) => {
         row[`${person.personId}Survival`] = point.individualSurvival[person.personId];
-        row[`${person.personId}Age`] = point.year - new Date(`${person.birthDate}T12:00:00`).getFullYear();
+        row[`${person.personId}Age`] = Number.isFinite(person.currentAge) && summary.asOfDate instanceof Date
+          ? person.currentAge + (point.year - summary.asOfDate.getFullYear())
+          : point.year - new Date(`${person.birthDate}T12:00:00`).getFullYear();
       });
       chartRows.push(row);
     });

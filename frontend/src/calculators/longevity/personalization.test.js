@@ -1,7 +1,9 @@
 import { getSsaQx } from './artifacts';
-import { fixedAsOfDate, ted } from './fixtures';
+import { getProductionNhisArtifact } from './nhisArtifact';
+import { fixedAsOfDate, ted, tedAndMary } from './fixtures';
 import { getAnnualQx, getRelativeHazard, isCompleteLongevityProfile } from './personalization';
 import { buildLongevitySummary } from './summary';
+import { buildLifeExpectancyPresentation } from './presentation';
 import { buildTestNhissArtifact, testNhissCoefficients } from './testNhissArtifact';
 
 const completeTedProfile = {
@@ -80,6 +82,54 @@ describe('longevity personalization', () => {
     const neverSurvival = neverSmoker.individuals.ted.curve.find((point) => point.age === midAge).survival;
     const currentSurvival = currentSmoker.individuals.ted.curve.find((point) => point.age === midAge).survival;
     expect(currentSurvival).toBeLessThan(neverSurvival);
+  });
+
+  test('production artifact moves 25/50/75 individual and household thresholds across health extremes', () => {
+    const artifact = getProductionNhisArtifact();
+    expect(artifact).not.toBeNull();
+    const favorable = { smoking: 'never', education: 'college', health: 'excellent' };
+    const adverse = { smoking: 'current', education: 'high_school', health: 'fair' };
+
+    const favorableTed = buildLongevitySummary({
+      people: [{ ...ted, profile: favorable }],
+      asOfDate: fixedAsOfDate,
+      modelArtifact: artifact
+    });
+    const adverseTed = buildLongevitySummary({
+      people: [{ ...ted, profile: adverse }],
+      asOfDate: fixedAsOfDate,
+      modelArtifact: artifact
+    });
+    [75, 50, 25].forEach((probability) => {
+      expect(adverseTed.individuals.ted.thresholds[probability])
+        .toBeLessThan(favorableTed.individuals.ted.thresholds[probability]);
+    });
+
+    const favorableCouple = buildLongevitySummary({
+      people: tedAndMary.map((person) => ({ ...person, profile: favorable })),
+      asOfDate: fixedAsOfDate,
+      modelArtifact: artifact
+    });
+    const adverseCouple = buildLongevitySummary({
+      people: tedAndMary.map((person) => ({ ...person, profile: adverse })),
+      asOfDate: fixedAsOfDate,
+      modelArtifact: artifact
+    });
+    [75, 50, 25].forEach((probability) => {
+      expect(adverseCouple.household.thresholds[probability])
+        .toBeLessThan(favorableCouple.household.thresholds[probability]);
+    });
+
+    const favorableCards = buildLifeExpectancyPresentation(favorableCouple);
+    const adverseCards = buildLifeExpectancyPresentation(adverseCouple);
+    expect(favorableCards.cards.map((card) => card.year)).toEqual([
+      favorableCouple.household.thresholds[75],
+      favorableCouple.household.thresholds[50],
+      favorableCouple.household.thresholds[25]
+    ]);
+    expect(adverseCards.cards[1].year).not.toBe(favorableCards.cards[1].year);
+    expect(favorableCards.chartRows.map((row) => row.year))
+      .toEqual(favorableCouple.household.curve.map((point) => point.year));
   });
 
   test('a malformed model degrades the summary to SSA and emits a diagnostic', () => {

@@ -114,6 +114,45 @@ describe('LifeExpectancyCalculator', () => {
     expect(container.textContent).not.toContain('Spouse sex');
   });
 
+  it('uses slider ages in household copy instead of onboarding DOB ages', () => {
+    mockUser.profile = tedProfile;
+    mockUser.partners = [maryPartner];
+    mockUser.preferences = {
+      lifeExpectancy: {
+        schemaVersion: 2,
+        calcType: 'couple',
+        profilesByPersonId: {
+          'ted-id': { sex: 'male', smoking: null, education: null, health: null },
+          'mary-id': { sex: 'female', smoking: null, education: null, health: null }
+        }
+      }
+    };
+    renderCalculator();
+
+    const sliders = Array.from(container.querySelectorAll('input[type="range"]'));
+    const nativeValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    act(() => {
+      nativeValue.call(sliders[0], '73');
+      sliders[0].dispatchEvent(new Event('input', { bubbles: true }));
+      sliders[0].dispatchEvent(new Event('change', { bubbles: true }));
+      nativeValue.call(sliders[1], '70');
+      sliders[1].dispatchEvent(new Event('input', { bubbles: true }));
+      sliders[1].dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(container.textContent).toMatch(/Ted age 73/);
+    expect(container.textContent).toMatch(/Mary age 70/);
+    expect(container.textContent).not.toMatch(/Ted age 61/);
+    expect(container.textContent).not.toMatch(/Mary age 58/);
+    expect(mockUser.profile.date_of_birth).toBe('1965-06-15');
+    expect(mockUser.partners[0].date_of_birth).toBe('1968-02-10');
+
+    const year50 = Number(container.querySelector('[data-longevity-card="50"] [data-card-secondary]').textContent);
+    expect(container.textContent).toContain(
+      `Ted would be ${73 + (year50 - asOfDate.getFullYear())}, and Mary would be ${70 + (year50 - asOfDate.getFullYear())}.`
+    );
+  });
+
   it('uses 55–100 age sliders defaulting to DOB age and does not write profile DOB', () => {
     mockUser.profile = tedProfile;
     mockUser.partners = [maryPartner];
@@ -234,6 +273,39 @@ describe('LifeExpectancyCalculator', () => {
 
     expect(container.textContent).toContain('Add a date of birth');
     expect(container.textContent).not.toMatch(/\b61\b/);
+  });
+
+  it('moves couple cards when health extremes change and the production artifact is loaded', () => {
+    mockNhisArtifact = jest.requireActual('../calculators/longevity/nhisArtifact').getProductionNhisArtifact();
+    mockUser.profile = tedProfile;
+    mockUser.partners = [maryPartner];
+    mockUser.preferences = {
+      lifeExpectancy: {
+        schemaVersion: 2,
+        calcType: 'couple',
+        profilesByPersonId: {
+          'ted-id': { sex: 'male', smoking: 'never', education: 'college', health: 'excellent' },
+          'mary-id': { sex: 'female', smoking: 'never', education: 'college', health: 'excellent' }
+        }
+      }
+    };
+    renderCalculator();
+
+    const favorableYear = container.querySelector('[data-longevity-card="50"] [data-card-secondary]').textContent;
+    expect(container.textContent).toMatch(/Development personalization|Personalized estimate/);
+    expect(container.textContent).toMatch(/missed the calibration-slope/);
+
+    const currentButtons = Array.from(container.querySelectorAll('button')).filter((button) => button.textContent === 'Current');
+    const highSchoolButtons = Array.from(container.querySelectorAll('button')).filter((button) => button.textContent === 'High School−');
+    const fairButtons = Array.from(container.querySelectorAll('button')).filter((button) => button.textContent === 'Fair or Poor');
+    act(() => {
+      currentButtons.forEach((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+      highSchoolButtons.forEach((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+      fairButtons.forEach((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    });
+
+    const adverseYear = container.querySelector('[data-longevity-card="50"] [data-card-secondary]').textContent;
+    expect(adverseYear).not.toBe(favorableYear);
   });
 
   it('recomputes cards when the last health answer is filled and a model artifact is present', () => {

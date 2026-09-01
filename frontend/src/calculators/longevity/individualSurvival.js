@@ -96,6 +96,7 @@ export const getIndividualLongevity = ({ person, asOfDate, modelArtifact }) => {
     name: person.name,
     sex: person.sex,
     birthDate: person.birthDate,
+    currentAge,
     estimateType: isCompleteLongevityProfile(person.profile) && modelArtifact
       ? 'personalized'
       : 'ssa-population',

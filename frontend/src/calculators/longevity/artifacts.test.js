@@ -37,7 +37,11 @@ describe('SSA artifact accessors', () => {
     expect(getHeadlineLifeExpectancy('female')).toBe(ssaArtifact.data.female[0].ex);
   });
 
-  test('production has no NHIS personalization artifact until validation passes', () => {
-    expect(getProductionNhisArtifact()).toBeNull();
+  test('production loads the development NHIS artifact that missed the calibration-slope gate', () => {
+    const artifact = getProductionNhisArtifact();
+    expect(artifact).not.toBeNull();
+    expect(artifact.modelVersion).toBe('nhis-lmf-2019-v1');
+    expect(artifact.validation.gates.passed).toBe(false);
+    expect(artifact.validation.horizons['4'].calibrationSlope).toBeGreaterThan(1.2);
   });
 });

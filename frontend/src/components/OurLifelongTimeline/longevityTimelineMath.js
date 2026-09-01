@@ -7,19 +7,28 @@ const peopleFromSummary = (summary) => {
   if (Array.isArray(summary.people) && summary.people.length > 0) {
     return summary.people.map((person) => ({
       name: person.name,
-      birthDate: person.birthDate
+      birthDate: person.birthDate,
+      currentAge: person.currentAge
     }));
   }
   return Object.values(summary.individuals || {}).map((person) => ({
     name: person.name,
-    birthDate: person.birthDate
+    birthDate: person.birthDate,
+    currentAge: person.currentAge
   }));
 };
 
-export const formatNamesAndAges = ({ people, year }) => {
+const ageInYear = (person, year, asOfYear) => {
+  if (Number.isFinite(person.currentAge) && Number.isFinite(asOfYear)) {
+    return person.currentAge + (year - asOfYear);
+  }
+  return year - new Date(`${person.birthDate}T12:00:00`).getFullYear();
+};
+
+export const formatNamesAndAges = ({ people, year, asOfYear }) => {
   const ages = people.map((person) => ({
     name: person.name,
-    age: year - new Date(`${person.birthDate}T12:00:00`).getFullYear()
+    age: ageInYear(person, year, asOfYear)
   }));
   if (ages.length === 2 && ages[0].age === ages[1].age) {
     return `${ages[0].name} and ${ages[1].name} would both be ${ages[0].age}.`;
@@ -126,7 +135,10 @@ export const getHouseholdLongevityMarkers = (summary) => {
   return [75, 50, 25].map((probability) => {
     const capped = summary.household.capped[probability];
     const year = capped ? summary.household.capYear : summary.household.thresholds[probability];
-    const namesAndAges = formatNamesAndAges({ people, year });
+    const asOfYear = summary.asOfDate instanceof Date
+      ? summary.asOfDate.getFullYear()
+      : Number(summary.asOfDate);
+    const namesAndAges = formatNamesAndAges({ people, year, asOfYear });
     return {
       id: `household-survival${probability}`,
       kind: `survival${probability}`,

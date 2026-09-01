@@ -3,9 +3,11 @@ import { attainedWholeAge, birthdayAtAge } from './dateMath';
 import { getHouseholdLongevity } from './householdSurvival';
 import { getIndividualLongevity } from './individualSurvival';
 import {
+  DEVELOPMENT_PERSONALIZED_SOURCE_DISCLOSURE,
   MortalityModelError,
   PERSONALIZED_SOURCE_DISCLOSURE,
-  isCompleteLongevityProfile
+  isCompleteLongevityProfile,
+  isDevelopmentNhisArtifact
 } from './personalization';
 
 const MIN_AGE = 0;
@@ -114,6 +116,9 @@ const latestDisplayedYear = ({ individuals, household }) => {
 
 const sourceDisclosureFor = (longevity, modelArtifact) => {
   if (longevity.estimateType === 'personalized' && modelArtifact?.modelVersion) {
+    if (isDevelopmentNhisArtifact(modelArtifact)) {
+      return DEVELOPMENT_PERSONALIZED_SOURCE_DISCLOSURE(modelArtifact.modelVersion);
+    }
     return PERSONALIZED_SOURCE_DISCLOSURE(modelArtifact.modelVersion);
   }
   return SSA_SOURCE_DISCLOSURE;

@@ -4,6 +4,12 @@ import { hazardToQx } from './hazardMath';
 export const PERSONALIZED_SOURCE_DISCLOSURE = (modelVersion) =>
   `SSA 2023 period life table, personalized with a U.S. NHIS Linked Mortality model, version ${modelVersion}. Uses 2023 mortality rates without projected future improvement.`;
 
+export const DEVELOPMENT_PERSONALIZED_SOURCE_DISCLOSURE = (modelVersion) =>
+  `SSA 2023 period life table, adjusted with a development U.S. NHIS Linked Mortality model, version ${modelVersion}. This v1 missed the calibration-slope validation gate and is not an official SSA estimate. Uses 2023 mortality rates without projected future improvement.`;
+
+export const isDevelopmentNhisArtifact = (artifact) =>
+  artifact?.validation?.gates?.passed === false;
+
 export class MortalityModelError extends Error {
   constructor(message, cause) {
     super(message);
@@ -81,7 +87,11 @@ export const getCalibrationDistribution = (sex, age, artifact) => {
   }
   return cells.map((cell) => ({
     weight: cell.weight,
-    profile: cell.profile
+    profile: cell.profile || {
+      smoking: cell.smoking,
+      education: cell.education,
+      health: cell.health
+    }
   }));
 };
 

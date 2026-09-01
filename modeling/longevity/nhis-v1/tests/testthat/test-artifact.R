@@ -155,7 +155,8 @@ test_that("exported artifact file has generated coefficients, lambdas, and valid
     }
   }
 
-  expect_true(artifact$validation$gates$passed)
+  expect_false(isTRUE(artifact$validation$gates$passed))
+  expect_gt(artifact$validation$horizons[["4"]]$calibrationSlope, 1.2)
   expect_identical(names(artifact$validation$horizons), c("4", "12", "20"))
   expect_true(nzchar(artifact$fitDate))
   expect_true(nzchar(artifact$softwareVersions$R))

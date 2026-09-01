@@ -66,16 +66,32 @@ describe('life expectancy presentation', () => {
     expect(model.householdExplanation).not.toMatch(/multiplicative/i);
   });
 
-  test('household names and ages stay on DOB when slider ages differ', () => {
+  test('household names, ages, and year labels use slider ages instead of onboarding DOB ages', () => {
     const people = [
-      { ...tedAndMary[0], currentAge: 70 },
-      { ...tedAndMary[1], currentAge: 80 }
+      { ...tedAndMary[0], currentAge: 73 },
+      { ...tedAndMary[1], currentAge: 70 }
     ];
     const summary = buildLongevitySummary({ people, asOfDate: fixedAsOfDate });
     const model = buildLifeExpectancyPresentation(summary);
     const year = model.cards[1].year;
-    expect(model.cards[1].namesAndAges).toBe(formatNamesAndAges({ people, year }));
-    expect(model.cards[1].namesAndAges).toMatch(/Ted would be/);
+    const asOfYear = fixedAsOfDate.getFullYear();
+    const tedAge = 73 + (year - asOfYear);
+    const maryAge = 70 + (year - asOfYear);
+    expect(model.householdExplanation).toContain('Ted age 73');
+    expect(model.householdExplanation).toContain('Mary age 70');
+    expect(model.householdExplanation).not.toMatch(/Ted age 61/);
+    expect(model.cards[1].namesAndAges).toBe(
+      formatNamesAndAges({ people: summary.individuals ? Object.values(summary.individuals) : people, year, asOfYear })
+    );
+    expect(model.cards[1].namesAndAges).toBe(
+      `Ted would be ${tedAge}, and Mary would be ${maryAge}.`
+    );
+    expect(model.chartRows[0][`${people[0].personId}Age`]).toBe(73);
+    expect(model.cards.map((card) => card.year)).toEqual([
+      summary.household.thresholds[75],
+      summary.household.thresholds[50],
+      summary.household.thresholds[25]
+    ]);
   });
 
   test('a complete couple with no model stays labeled SSA and lists no unanswered fields', () => {
