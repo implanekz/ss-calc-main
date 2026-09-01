@@ -53,6 +53,13 @@ describe('age/calendar-year conversion', () => {
       longevitySummary: { axisEndYear: NaN }
     })).toBe(2065);
   });
+
+  test('axis end year ignores a longevity summary that collapsed to the current year', () => {
+    expect(getAxisEndYear({
+      birthYears: [1965, 1968],
+      longevitySummary: { axisEndYear: 2026, asOfDate: new Date(2026, 7, 31) }
+    })).toBe(2063);
+  });
 });
 
 describe('household cumulative buckets', () => {

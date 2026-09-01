@@ -5,15 +5,28 @@ export const ageToCalendarYear = (birthYear, age) => birthYear + age;
 
 export const calendarYearToAge = (birthYear, year) => year - birthYear;
 
-export const getAxisEndYear = ({ birthYears = [], longevitySummary } = {}) => {
-  if (Number.isFinite(longevitySummary?.axisEndYear)) {
-    return longevitySummary.axisEndYear;
-  }
+const fallbackAxisEndYear = (birthYears = []) => {
   const years = birthYears.filter((year) => Number.isFinite(year));
   if (years.length === 0) {
     return null;
   }
   return Math.max(...years) + 95;
+};
+
+const asOfYearFromSummary = (longevitySummary) => {
+  if (longevitySummary?.asOfDate instanceof Date && Number.isFinite(longevitySummary.asOfDate.getFullYear())) {
+    return longevitySummary.asOfDate.getFullYear();
+  }
+  return new Date().getFullYear();
+};
+
+export const getAxisEndYear = ({ birthYears = [], longevitySummary } = {}) => {
+  const fallback = fallbackAxisEndYear(birthYears);
+  const fromSummary = longevitySummary?.axisEndYear;
+  if (Number.isFinite(fromSummary) && fromSummary > asOfYearFromSummary(longevitySummary)) {
+    return fromSummary;
+  }
+  return fallback;
 };
 
 // The two claiming-strategy extremes shown in the timeline cursor's tooltip, alongside the

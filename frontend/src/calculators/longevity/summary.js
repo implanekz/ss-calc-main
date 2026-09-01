@@ -25,8 +25,23 @@ const isCalculablePerson = (person, asOfDate) => {
   return age >= MIN_AGE && age <= MAX_AGE;
 };
 
+const birthYearOf = (person) => {
+  if (!person?.birthDate) {
+    return NaN;
+  }
+  return new Date(`${person.birthDate}T12:00:00`).getFullYear();
+};
+
+const fallbackAxisEndFromPeople = (people = []) => {
+  const years = people.map(birthYearOf).filter((year) => Number.isFinite(year));
+  if (years.length === 0) {
+    return null;
+  }
+  return Math.max(...years) + 95;
+};
+
 export const getHouseholdCapYear = (people) => {
-  const years = people.map((person) => new Date(`${person.birthDate}T12:00:00`).getFullYear());
+  const years = people.map(birthYearOf);
   const earlierBirthYear = Math.min(...years);
   const laterBirthYear = Math.max(...years);
   return Math.min(laterBirthYear + 110, earlierBirthYear + 119);
@@ -148,7 +163,7 @@ export const buildLongevitySummary = ({ people, asOfDate, modelArtifact = null, 
   });
 
   let household = null;
-  let capYear = asOfDate.getFullYear();
+  let capYear = fallbackAxisEndFromPeople(people);
   if (validPeople.length === 1) {
     capYear = individuals[validPeople[0].personId].capYear;
   } else if (validPeople.length >= 2) {
@@ -181,12 +196,15 @@ export const buildLongevitySummary = ({ people, asOfDate, modelArtifact = null, 
   }
 
   const latestYear = latestDisplayedYear({ individuals, household }) ?? capYear;
+  const axisEndYear = Number.isFinite(latestYear) && Number.isFinite(capYear)
+    ? roundAxisEnd({ latestYear, capYear })
+    : fallbackAxisEndFromPeople(people);
 
   return {
     asOfDate,
     individuals,
     household,
-    axisEndYear: roundAxisEnd({ latestYear, capYear }),
+    axisEndYear,
     modelVersion: usedModelVersion
   };
 };

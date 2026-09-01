@@ -90,4 +90,31 @@ describe('longevity summary', () => {
     expect(single.household).toBe(null);
     expect(single.individuals.ted.capYear).toBe(2075);
   });
+
+  test('missing sex still keeps Ted and Mary\'s axis past the current year', () => {
+    const asOfDate = new Date(2026, 7, 31);
+    const people = [
+      { personId: 'ted', name: 'Ted', sex: null, birthDate: '1965-06-15', profile: null },
+      { personId: 'mary', name: 'Mary', sex: null, birthDate: '1968-02-10', profile: null }
+    ];
+    const summary = buildLongevitySummary({ people, asOfDate });
+
+    expect(summary.axisEndYear).toBe(2063);
+    expect(summary.axisEndYear).not.toBe(asOfDate.getFullYear());
+  });
+
+  test('SSA-only Ted 1965 and Mary 1968 keep a full calendar axis in 2026', () => {
+    const asOfDate = new Date(2026, 7, 31);
+    const people = [
+      { personId: 'ted', name: 'Ted', sex: 'male', birthDate: '1965-06-15', profile: null },
+      { personId: 'mary', name: 'Mary', sex: 'female', birthDate: '1968-02-10', profile: null }
+    ];
+    const summary = buildLongevitySummary({ people, asOfDate });
+    const household25 = summary.household.thresholds[25];
+
+    expect(summary.axisEndYear).toBe(2060);
+    expect(household25).toBe(2060);
+    expect(summary.axisEndYear).not.toBe(asOfDate.getFullYear());
+    expect(summary.axisEndYear).toBeLessThanOrEqual(getHouseholdCapYear(people));
+  });
 });
