@@ -11,9 +11,16 @@ import {
     Legend,
 } from 'chart.js';
 import { useUser } from '../contexts/UserContext';
+import { useDevMode } from '../contexts/DevModeContext';
 import { buildLongevitySummary } from '../calculators/longevity/summary';
 import { buildLifeExpectancyPresentation } from '../calculators/longevity/presentation';
 import { attainedWholeAge } from '../calculators/longevity/dateMath';
+import {
+    hasPartnerBirthDate,
+    resolveBirthDate,
+    resolveFirstName,
+    resolvePersonId
+} from '../calculators/longevity/identity';
 import {
     emptyLongevityProfile,
     migrateLifeExpectancyPreferences
@@ -21,10 +28,12 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-const asOfDate = () => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const startOfLocalDay = (value) => {
+    const source = value instanceof Date ? value : new Date();
+    return new Date(source.getFullYear(), source.getMonth(), source.getDate());
 };
+
+const isSupportedSex = (sex) => sex === 'male' || sex === 'female';
 
 const HealthSelector = ({ health, setHealth }) => (
     <div className="space-y-3">
@@ -76,12 +85,39 @@ const HealthSelector = ({ health, setHealth }) => (
     </div>
 );
 
-const LifeExpectancyCalculator = () => {
-    const { preferences, updatePreferences, user, profile, partners } = useUser();
-    const primaryPersonId = profile?.id || user?.id || null;
-    const partnerPersonId = partners?.[0]?.id || null;
+const AgeDisplay = ({ name, age, possessiveLabel }) => (
+    <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+            {name ? `${name}'s current age` : possessiveLabel}
+        </label>
+        {age == null ? (
+            <div className="text-center mt-2">
+                <a href="/settings" className="text-lg font-semibold text-primary-600 underline">
+                    Add a date of birth in your profile.
+                </a>
+            </div>
+        ) : (
+            <div className="text-center mt-2">
+                <div className="text-4xl font-bold text-primary-600">{age}</div>
+                <a href="/settings" className="text-xs text-gray-500 underline">
+                    Change date of birth in your profile
+                </a>
+            </div>
+        )}
+    </div>
+);
 
-    const [calcType, setCalcType] = useState('individual');
+const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
+    const { preferences, updatePreferences, user, profile: realProfile, partners: realPartners } = useUser();
+    const { isDevMode, devProfile, devPartners } = useDevMode();
+    const profile = isDevMode ? devProfile : realProfile;
+    const partners = isDevMode ? (devPartners || []) : (realPartners || []);
+
+    const primaryPersonId = resolvePersonId(profile, user?.id) || (profile || user ? 'primary' : null);
+    const partnerPersonId = resolvePersonId(partners?.[0], hasPartnerBirthDate(partners) ? 'partner' : null);
+    const savedCalcType = preferences?.lifeExpectancy?.calcType;
+
+    const [calcType, setCalcType] = useState(null);
     const [profilesByPersonId, setProfilesByPersonId] = useState({});
     const [currentView, setCurrentView] = useState('graph');
     const [hasLoadedPrefs, setHasLoadedPrefs] = useState(false);
@@ -97,10 +133,17 @@ const LifeExpectancyCalculator = () => {
             primaryPersonId,
             partnerPersonId
         });
-        setCalcType(migrated.calcType);
+        setCalcType(
+            savedCalcType === 'couple' || savedCalcType === 'individual'
+                ? savedCalcType
+                : null
+        );
         setProfilesByPersonId(migrated.profilesByPersonId);
         setHasLoadedPrefs(true);
-    }, [preferences, hasLoadedPrefs, primaryPersonId, partnerPersonId]);
+    }, [preferences, hasLoadedPrefs, primaryPersonId, partnerPersonId, savedCalcType]);
+
+    const effectiveCalcType = calcType
+        || (hasPartnerBirthDate(partners) ? 'couple' : 'individual');
 
     const updatePersonProfile = (personId, patch) => {
         if (!personId) {
@@ -120,7 +163,7 @@ const LifeExpectancyCalculator = () => {
         updatePreferences({
             lifeExpectancy: {
                 schemaVersion: 2,
-                calcType,
+                calcType: effectiveCalcType,
                 profilesByPersonId
             }
         })
@@ -129,7 +172,7 @@ const LifeExpectancyCalculator = () => {
                 console.error('Failed to save life expectancy settings:', err);
                 setIsSaving(false);
             });
-    }, [user, updatePreferences, calcType, profilesByPersonId]);
+    }, [user, updatePreferences, effectiveCalcType, profilesByPersonId]);
 
     useEffect(() => {
         if (!hasLoadedPrefs) {
@@ -144,31 +187,32 @@ const LifeExpectancyCalculator = () => {
                 clearTimeout(saveTimeoutRef.current);
             }
         };
-    }, [calcType, profilesByPersonId, hasLoadedPrefs, saveSettings]);
+    }, [effectiveCalcType, profilesByPersonId, hasLoadedPrefs, saveSettings]);
 
-    const today = asOfDate();
+    const today = useMemo(() => startOfLocalDay(asOfDateProp), [asOfDateProp]);
     const people = useMemo(() => {
         const records = [];
         if (primaryPersonId) {
             records.push({
                 personId: primaryPersonId,
-                name: profile?.first_name || 'You',
-                birthDate: profile?.date_of_birth || null,
+                name: resolveFirstName(profile, 'You'),
+                birthDate: resolveBirthDate(profile),
                 sex: profilesByPersonId[primaryPersonId]?.sex || null,
                 profile: profilesByPersonId[primaryPersonId] || emptyLongevityProfile()
             });
         }
-        if (calcType === 'couple' && partnerPersonId) {
+        if (effectiveCalcType === 'couple' && (partnerPersonId || partners?.[0])) {
+            const spouseId = partnerPersonId || 'partner';
             records.push({
-                personId: partnerPersonId,
-                name: partners[0]?.first_name || 'Spouse',
-                birthDate: partners[0]?.date_of_birth || null,
-                sex: profilesByPersonId[partnerPersonId]?.sex || null,
-                profile: profilesByPersonId[partnerPersonId] || emptyLongevityProfile()
+                personId: spouseId,
+                name: resolveFirstName(partners[0], 'Spouse'),
+                birthDate: resolveBirthDate(partners[0]),
+                sex: profilesByPersonId[spouseId]?.sex || null,
+                profile: profilesByPersonId[spouseId] || emptyLongevityProfile()
             });
         }
         return records;
-    }, [calcType, partnerPersonId, partners, primaryPersonId, profile, profilesByPersonId]);
+    }, [effectiveCalcType, partnerPersonId, partners, primaryPersonId, profile, profilesByPersonId]);
 
     const summary = useMemo(
         () => buildLongevitySummary({ people, asOfDate: today }),
@@ -179,6 +223,46 @@ const LifeExpectancyCalculator = () => {
     const spouse = people[1];
     const primaryAge = primary?.birthDate ? attainedWholeAge(primary.birthDate, today) : null;
     const spouseAge = spouse?.birthDate ? attainedWholeAge(spouse.birthDate, today) : null;
+
+    const primarySexReady = isSupportedSex(primary?.sex);
+    const spouseSexReady = effectiveCalcType !== 'couple' || isSupportedSex(spouse?.sex);
+    const canEstimate = Boolean(
+        primary?.birthDate
+        && primarySexReady
+        && (effectiveCalcType !== 'couple' || (spouse?.birthDate && spouseSexReady))
+    );
+
+    const readinessMessage = (() => {
+        if (canEstimate) {
+            return null;
+        }
+        if (!primary?.birthDate) {
+            return 'Add a date of birth in your profile to see SSA population longevity estimates.';
+        }
+        if (!primarySexReady || (effectiveCalcType === 'couple' && spouse?.birthDate && !spouseSexReady)) {
+            return 'Choose male or female to see SSA population longevity estimates.';
+        }
+        if (effectiveCalcType === 'couple' && !spouse?.birthDate) {
+            return 'Complete both profiles to estimate how long at least one of you may live.';
+        }
+        return 'Choose male or female to see SSA population longevity estimates.';
+    })();
+
+    const emptyGraphMessage = (() => {
+        if (presentation.chartRows.length > 0) {
+            return null;
+        }
+        if (!primary?.birthDate) {
+            return 'Add a date of birth in your profile, then choose male or female. You will see SSA 75%, 50%, and 25% ages of living to at least those birthdays. After you answer smoking, education, and health, those ages can be personalized.';
+        }
+        if (!primarySexReady || (effectiveCalcType === 'couple' && spouse && !spouseSexReady)) {
+            return 'Choose male or female to see SSA 75%, 50%, and 25% ages of living to at least those birthdays. After you answer smoking, education, and health, those ages can be personalized.';
+        }
+        if (effectiveCalcType === 'couple' && !spouse?.birthDate) {
+            return 'Add a spouse date of birth to see household 75%, 50%, and 25% years when at least one of you is still alive. After you answer smoking, education, and health, those ages can be personalized.';
+        }
+        return 'SSA 75%, 50%, and 25% ages will appear here once this profile can be calculated.';
+    })();
 
     const chartData = useMemo(() => {
         if (presentation.chartRows.length === 0) {
@@ -278,65 +362,82 @@ const LifeExpectancyCalculator = () => {
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Calculation Type</label>
-                            <div className="flex gap-2">
-                                <button type="button" onClick={() => setCalcType('individual')}
-                                    className={`flex-1 py-3 px-4 font-semibold rounded-xl border-2 transition-all ${calcType === 'individual' ? 'bg-gradient-to-r from-primary-600 to-purple-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'}`}>
-                                    Individual
-                                </button>
-                                <button type="button" onClick={() => setCalcType('couple')}
-                                    className={`flex-1 py-3 px-4 font-semibold rounded-xl border-2 transition-all ${calcType === 'couple' ? 'bg-gradient-to-r from-primary-600 to-purple-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'}`}>
-                                    Married Couple
-                                </button>
-                            </div>
+                    <div className="mb-6">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Calculation Type</label>
+                        <div className="flex gap-2 max-w-md">
+                            <button type="button" onClick={() => setCalcType('individual')}
+                                className={`flex-1 py-3 px-4 font-semibold rounded-xl border-2 transition-all ${effectiveCalcType === 'individual' ? 'bg-gradient-to-r from-primary-600 to-purple-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'}`}>
+                                Individual
+                            </button>
+                            <button type="button" onClick={() => setCalcType('couple')}
+                                className={`flex-1 py-3 px-4 font-semibold rounded-xl border-2 transition-all ${effectiveCalcType === 'couple' ? 'bg-gradient-to-r from-primary-600 to-purple-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'}`}>
+                                Married Couple
+                            </button>
                         </div>
-                        {primaryPersonId ? <GenderSelector personId={primaryPersonId} label="Your sex" /> : null}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Your current age</label>
-                            <div className="text-center text-4xl font-bold text-primary-600 mt-2">
-                                {primaryAge == null ? 'Add a date of birth in your profile' : primaryAge}
-                            </div>
-                        </div>
-                        {calcType === 'couple' && partnerPersonId ? (
-                            <GenderSelector personId={partnerPersonId} label="Spouse sex" />
-                        ) : null}
                     </div>
 
-                    {calcType === 'couple' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pt-4 border-t border-gray-200">
-                            <div></div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Spouse current age</label>
-                                <div className="text-center text-4xl font-bold text-primary-600 mt-2">
-                                    {spouseAge == null ? 'Add a spouse date of birth' : spouseAge}
+                    <div className={`grid gap-6 mb-6 ${effectiveCalcType === 'couple' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>
+                        <div className="space-y-4">
+                            {effectiveCalcType === 'couple' && primary?.name ? (
+                                <div className="text-xs font-bold text-primary-600 uppercase tracking-wider pb-1 border-b-2 border-primary-600">
+                                    {primary.name}
                                 </div>
-                            </div>
+                            ) : null}
+                            {primaryPersonId ? (
+                                <GenderSelector
+                                    personId={primaryPersonId}
+                                    label={primary?.name && primary.name !== 'You' ? `${primary.name}'s sex` : 'Your sex'}
+                                />
+                            ) : null}
+                            <AgeDisplay name={primary?.name === 'You' ? null : primary?.name} age={primaryAge} possessiveLabel="Your current age" />
                         </div>
-                    )}
+                        {effectiveCalcType === 'couple' ? (
+                            <div className="space-y-4">
+                                {spouse?.name ? (
+                                    <div className="text-xs font-bold text-primary-600 uppercase tracking-wider pb-1 border-b-2 border-primary-600">
+                                        {spouse.name}
+                                    </div>
+                                ) : null}
+                                {partnerPersonId || partners?.[0] ? (
+                                    <GenderSelector
+                                        personId={partnerPersonId || 'partner'}
+                                        label={spouse?.name && spouse.name !== 'Spouse' ? `${spouse.name}'s sex` : 'Spouse sex'}
+                                    />
+                                ) : (
+                                    <p className="text-sm text-gray-600">Add a spouse in your profile to estimate how long at least one of you may live.</p>
+                                )}
+                                <AgeDisplay name={spouse?.name === 'Spouse' ? null : spouse?.name} age={spouseAge} possessiveLabel="Spouse current age" />
+                            </div>
+                        ) : null}
+                    </div>
 
                     <div className="bg-gray-50 rounded-xl p-4 mb-6">
                         <div className="flex items-center gap-2 mb-4">
                             <h3 className="font-bold text-gray-800">Your Health Profile</h3>
                             <span className="text-xs font-semibold bg-gradient-to-r from-primary-600 to-purple-600 text-white px-2 py-0.5 rounded-full">{presentation.estimateLabel}</span>
                         </div>
-                        <div className={`grid gap-6 ${calcType === 'couple' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
+                        <div className={`grid gap-6 ${effectiveCalcType === 'couple' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
                             {primaryPersonId && (
                                 <div>
-                                    {calcType === 'couple' && <div className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-2 pb-1 border-b-2 border-primary-600">You</div>}
+                                    {effectiveCalcType === 'couple' && (
+                                        <div className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-2 pb-1 border-b-2 border-primary-600">
+                                            {primary?.name || 'You'}
+                                        </div>
+                                    )}
                                     <HealthSelector
                                         health={profilesByPersonId[primaryPersonId] || emptyLongevityProfile()}
                                         setHealth={(next) => updatePersonProfile(primaryPersonId, next)}
                                     />
                                 </div>
                             )}
-                            {calcType === 'couple' && partnerPersonId && (
+                            {effectiveCalcType === 'couple' && (partnerPersonId || partners?.[0]) && (
                                 <div>
-                                    <div className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-2 pb-1 border-b-2 border-primary-600">Spouse</div>
+                                    <div className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-2 pb-1 border-b-2 border-primary-600">
+                                        {spouse?.name || 'Spouse'}
+                                    </div>
                                     <HealthSelector
-                                        health={profilesByPersonId[partnerPersonId] || emptyLongevityProfile()}
-                                        setHealth={(next) => updatePersonProfile(partnerPersonId, next)}
+                                        health={profilesByPersonId[partnerPersonId || 'partner'] || emptyLongevityProfile()}
+                                        setHealth={(next) => updatePersonProfile(partnerPersonId || 'partner', next)}
                                     />
                                 </div>
                             )}
@@ -345,19 +446,36 @@ const LifeExpectancyCalculator = () => {
 
                     {presentation.cards.length === 0 ? (
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 text-sm text-amber-900">
-                            Add a date of birth and choose male or female to see SSA population longevity estimates.
+                            {readinessMessage}
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             {presentation.cards.map((card) => (
-                                <div key={card.probability} className="bg-blue-50 rounded-xl p-4 text-center" title={card.tooltip}>
-                                    <div className="text-sm font-semibold text-gray-600 mb-1">{card.probability}% chance of living to at least</div>
-                                    <div className="text-4xl font-bold text-gray-900">{card.age}</div>
-                                    <div className="text-sm text-gray-600">years old</div>
+                                <div
+                                    key={card.probability}
+                                    data-longevity-card={card.probability}
+                                    className="bg-blue-50 rounded-xl p-4 text-center"
+                                    title={card.tooltip}
+                                >
+                                    <div className="text-sm font-semibold text-gray-600 mb-1">
+                                        {card.year != null || card.namesAndAges
+                                            ? `${card.probability}% chance at least one of you is alive in`
+                                            : `${card.probability}% chance you will live to at least age`}
+                                    </div>
+                                    <div className="text-4xl font-bold text-gray-900">{card.displayValue ?? card.age ?? card.year}</div>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                        {card.namesAndAges || 'years old'}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
+
+                    {presentation.householdExplanation ? (
+                        <div className="rounded-xl bg-gradient-to-r from-primary-600 to-purple-600 text-white p-5 mb-6">
+                            <p className="text-sm leading-relaxed">{presentation.householdExplanation}</p>
+                        </div>
+                    ) : null}
 
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-gray-800">Survival probability curves</h3>
@@ -374,34 +492,46 @@ const LifeExpectancyCalculator = () => {
                     </div>
 
                     {currentView === 'graph' && (
-                        <div className="bg-gray-50 rounded-xl p-4" style={{ height: '400px' }}>
-                            <Line data={chartData} options={chartOptions} />
-                        </div>
+                        emptyGraphMessage ? (
+                            <div className="bg-gray-50 rounded-xl p-6 text-sm text-gray-700" style={{ minHeight: '200px' }}>
+                                {emptyGraphMessage}
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 rounded-xl p-4" style={{ height: '400px' }}>
+                                <Line data={chartData} options={chartOptions} />
+                            </div>
+                        )
                     )}
 
                     {currentView === 'table' && (
-                        <div className="bg-gray-50 rounded-xl overflow-hidden max-h-96 overflow-y-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gradient-to-r from-primary-600 to-purple-600 text-white sticky top-0">
-                                    <tr>
-                                        <th className="py-3 px-4 text-left font-semibold">{people.length > 1 ? 'Year' : 'Age'}</th>
-                                        {chartData.datasets?.map((ds, i) => (
-                                            <th key={i} className="py-3 px-4 text-center font-semibold">{ds.label}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {chartData.labels?.map((label, idx) => (
-                                        <tr key={label} className="border-b border-gray-200">
-                                            <td className="py-2 px-4 font-semibold">{label}</td>
+                        emptyGraphMessage ? (
+                            <div className="bg-gray-50 rounded-xl p-6 text-sm text-gray-700">
+                                {emptyGraphMessage}
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 rounded-xl overflow-hidden max-h-96 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gradient-to-r from-primary-600 to-purple-600 text-white sticky top-0">
+                                        <tr>
+                                            <th className="py-3 px-4 text-left font-semibold">{people.length > 1 ? 'Year' : 'Age'}</th>
                                             {chartData.datasets?.map((ds, i) => (
-                                                <td key={i} className="py-2 px-4 text-center">{ds.data[idx]?.toFixed(1)}%</td>
+                                                <th key={i} className="py-3 px-4 text-center font-semibold">{ds.label}</th>
                                             ))}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {chartData.labels?.map((label, idx) => (
+                                            <tr key={label} className="border-b border-gray-200">
+                                                <td className="py-2 px-4 font-semibold">{label}</td>
+                                                {chartData.datasets?.map((ds, i) => (
+                                                    <td key={i} className="py-2 px-4 text-center">{ds.data[idx]?.toFixed(1)}%</td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )
                     )}
 
                     <p className="text-xs text-gray-500 mt-4 text-center">
