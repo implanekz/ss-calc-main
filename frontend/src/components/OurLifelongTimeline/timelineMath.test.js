@@ -46,6 +46,13 @@ describe('age/calendar-year conversion', () => {
     expect(axisEndYear).toBe(lastYearWithData);
     expect(projection.monthly[axisEndYear]).toBeDefined();
   });
+
+  test('axis end year ignores a non-finite longevity summary value', () => {
+    expect(getAxisEndYear({
+      birthYears: [1965, 1970],
+      longevitySummary: { axisEndYear: NaN }
+    })).toBe(2065);
+  });
 });
 
 describe('household cumulative buckets', () => {
@@ -160,6 +167,45 @@ describe('household cumulative buckets', () => {
     // because calculateProjection() calculated those keys from the same birthYear.
     // This guarantees correct alignment even in timezones where ISO date parsing
     // might shift the birth year by 1 relative to the input DOB string.
+  });
+
+  test('shared endYear before the later-born spouse\'s age 62 still produces real projection years', () => {
+    // Older spouse starts in 2012 (1950+62). Younger spouse starts in 2062 (2000+62).
+    // 2060 is a valid explicit end for the older person and is rejected for the younger
+    // one by calculateProjection -- the crash Our Lifelong Timeline hit.
+    const household = {
+      spouse1Pia: 2500,
+      spouse1Dob: '1950-06-15',
+      spouse2Pia: 2000,
+      spouse2Dob: '2000-06-15',
+      inflation: 0,
+      endYear: 2060
+    };
+
+    expect(() => getHouseholdBuckets(household)).not.toThrow();
+
+    const bucket62 = getHouseholdBucket({ filingAge: 62, ...household });
+    expect(bucket62.monthly[2060]).toBeDefined();
+    expect(bucket62.startYear).toBe(2062);
+    // The younger spouse is computed through their own start, not omitted or zero-padded.
+    expect(bucket62.monthly[2062]).toBeGreaterThan(0);
+  });
+
+  test('getHouseholdBuckets does not throw when endYear is omitted or NaN', () => {
+    const household = {
+      spouse1Pia: 2500,
+      spouse1Dob: '1965-06-15',
+      spouse2Pia: 2000,
+      spouse2Dob: '1970-06-15',
+      inflation: 0
+    };
+
+    expect(() => getHouseholdBuckets(household)).not.toThrow();
+    expect(() => getHouseholdBuckets({ ...household, endYear: undefined })).not.toThrow();
+    expect(() => getHouseholdBuckets({ ...household, endYear: NaN })).not.toThrow();
+
+    const fromNaN = getHouseholdBuckets({ ...household, endYear: NaN });
+    expect(fromNaN[0].monthly[2032]).toBeGreaterThan(0);
   });
 });
 

@@ -13,7 +13,7 @@ import { OneMonthAtATimeModal } from './OneMonthAtATime';
 import { OurLifelongTimeline } from './OurLifelongTimeline';
 import HouseholdWorkStopPanel from './HouseholdWorkStopPanel';
 import { isTimelineReachable, getHouseholdBucket } from './OurLifelongTimeline/timelineMath';
-import { calculateProjection, combineProjections } from '../calculators/showMeTheMoney/projections';
+import { calculateProjection, combineProjections, resolveProjectionEndYear } from '../calculators/showMeTheMoney/projections';
 import { buildLongevitySummary } from '../calculators/longevity/summary';
 import {
     emptyLongevityProfile,
@@ -2245,13 +2245,14 @@ const ShowMeTheMoneyCalculator = () => {
     const chartSpouse2Pia = effectivePia(scenario, 'spouse2');
 
     const scenarioData = useMemo(() => {
+        const primaryEndYear = resolveProjectionEndYear(spouse1Dob, projectionEndYear);
         const primaryAge62 = calculateProjection({
             pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 62,
             filingMonth: 0,
             inflationRate: inflation,
-            endYear: projectionEndYear
+            endYear: primaryEndYear
         });
         const primaryPreferred = calculateProjection({
             pia: chartSpouse1Pia,
@@ -2259,7 +2260,7 @@ const ShowMeTheMoneyCalculator = () => {
             filingYear: spouse1PreferredYear,
             filingMonth: spouse1PreferredMonth,
             inflationRate: inflation,
-            endYear: projectionEndYear
+            endYear: primaryEndYear
         });
         const primaryAge70 = calculateProjection({
             pia: chartSpouse1Pia,
@@ -2267,7 +2268,7 @@ const ShowMeTheMoneyCalculator = () => {
             filingYear: 70,
             filingMonth: 0,
             inflationRate: inflation,
-            endYear: projectionEndYear
+            endYear: primaryEndYear
         });
 
         const primaryProjections = {
@@ -2292,13 +2293,14 @@ const ShowMeTheMoneyCalculator = () => {
         let combinedProjections = primaryProjections;
 
         if (isMarried) {
+            const spouseEndYear = resolveProjectionEndYear(spouse2Dob, projectionEndYear);
             const spouseAge62 = calculateProjection({
                 pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 62,
                 filingMonth: 0,
                 inflationRate: inflation,
-                endYear: projectionEndYear
+                endYear: spouseEndYear
             });
             const spousePreferredScenario = calculateProjection({
                 pia: chartSpouse2Pia,
@@ -2306,7 +2308,7 @@ const ShowMeTheMoneyCalculator = () => {
                 filingYear: spouse2PreferredYear,
                 filingMonth: spouse2PreferredMonth,
                 inflationRate: inflation,
-                endYear: projectionEndYear
+                endYear: spouseEndYear
             });
             const spouseAge70 = calculateProjection({
                 pia: chartSpouse2Pia,
@@ -2314,7 +2316,7 @@ const ShowMeTheMoneyCalculator = () => {
                 filingYear: 70,
                 filingMonth: 0,
                 inflationRate: inflation,
-                endYear: projectionEndYear
+                endYear: spouseEndYear
             });
 
             spouseProjections = {

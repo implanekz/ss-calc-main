@@ -1,4 +1,4 @@
-import { calculateProjection, combineProjections } from '../../calculators/showMeTheMoney/projections';
+import { calculateProjection, combineProjections, resolveProjectionEndYear } from '../../calculators/showMeTheMoney/projections';
 import { getFra } from '../../utils/benefitFormulas';
 
 export const ageToCalendarYear = (birthYear, age) => birthYear + age;
@@ -6,7 +6,7 @@ export const ageToCalendarYear = (birthYear, age) => birthYear + age;
 export const calendarYearToAge = (birthYear, year) => year - birthYear;
 
 export const getAxisEndYear = ({ birthYears = [], longevitySummary } = {}) => {
-  if (longevitySummary?.axisEndYear != null) {
+  if (Number.isFinite(longevitySummary?.axisEndYear)) {
     return longevitySummary.axisEndYear;
   }
   const years = birthYears.filter((year) => Number.isFinite(year));
@@ -39,7 +39,7 @@ export const getHouseholdBucket = ({
     filingYear: filingAge,
     filingMonth: 0,
     inflationRate: inflation,
-    endYear
+    endYear: resolveProjectionEndYear(spouse1Dob, endYear)
   });
   const spouseProjection = isMarried && spouse2Dob
     ? calculateProjection({
@@ -48,7 +48,7 @@ export const getHouseholdBucket = ({
       filingYear: filingAge,
       filingMonth: 0,
       inflationRate: inflation,
-      endYear
+      endYear: resolveProjectionEndYear(spouse2Dob, endYear)
     })
     : null;
   const combined = combineProjections({

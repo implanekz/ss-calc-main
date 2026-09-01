@@ -16,6 +16,16 @@ export const ageInMonths = (birthDate, targetDate) => {
   return totalMonths;
 };
 
+// A shared household axis can end before a later-born spouse's birthYear+62.
+// Lift that person's end to their own start so callers still get real years.
+// calculateProjection itself still rejects a truly invalid explicit endYear.
+export const resolveProjectionEndYear = (dob, endYear) => {
+  if (!Number.isInteger(endYear) || !dob) {
+    return endYear;
+  }
+  return Math.max(endYear, new Date(dob).getFullYear() + 62);
+};
+
 export const calculateProjection = ({
   pia,
   dob,
