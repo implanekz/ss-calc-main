@@ -3,11 +3,46 @@ import {
   buildLongevityTooltip,
   formatNamesAndAges
 } from '../../components/OurLifelongTimeline/longevityTimelineMath';
+import {
+  isCompleteLongevityProfile,
+  LONGEVITY_PROFILE_FIELD_LABELS,
+  unansweredLongevityFields
+} from './personalization';
 
 const INDIVIDUAL_COPY = (probability, name, age) =>
   `There is a ${probability}% chance ${name} will live to at least age ${age}.`;
 
+const MODEL_PENDING_NOTE =
+  'Health questions are collected for personalization. SSA population estimates are shown until the NHIS model is released.';
+
 const peopleFromSummary = (summary) => Object.values(summary.individuals || {});
+
+const joinWithAnd = (parts) => {
+  if (parts.length === 0) {
+    return '';
+  }
+  if (parts.length === 1) {
+    return parts[0];
+  }
+  if (parts.length === 2) {
+    return `${parts[0]} and ${parts[1]}`;
+  }
+  return `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
+};
+
+export const formatUnansweredHint = (people) => {
+  const parts = [];
+  people.forEach((person) => {
+    unansweredLongevityFields(person.profile).forEach((field) => {
+      const name = person.name || 'this person';
+      parts.push(`${name}'s ${LONGEVITY_PROFILE_FIELD_LABELS[field]}`);
+    });
+  });
+  if (parts.length === 0) {
+    return null;
+  }
+  return `Answer ${joinWithAnd(parts)} to personalize.`;
+};
 
 const longerLivedPerson = (people) =>
   people.reduce((best, person) => {
@@ -61,6 +96,9 @@ const buildHouseholdCards = (summary) => {
       probability,
       year: summary.household.thresholds[probability],
       displayValue: capped ? `Beyond ${summary.household.capYear}` : year,
+      primaryMetric: `${probability}%`,
+      secondaryMetric: capped ? `Beyond ${summary.household.capYear}` : String(year),
+      kicker: 'chance at least one of you is alive',
       namesAndAges,
       tooltip: buildLongevityTooltip({
         kind: capped ? 'household-capped' : 'household',
@@ -78,15 +116,26 @@ const buildIndividualCards = (primary) =>
     probability,
     age: primary.thresholds[probability],
     displayValue: primary.capped?.[probability] ? '110+' : primary.thresholds[probability],
+    primaryMetric: `${probability}%`,
+    secondaryMetric: primary.capped?.[probability]
+      ? 'age 110+'
+      : `age ${primary.thresholds[probability]}`,
+    kicker: 'chance you will live to at least this age',
     tooltip: INDIVIDUAL_COPY(probability, primary.name, primary.thresholds[probability])
   }));
 
 export const buildLifeExpectancyPresentation = (summary) => {
   const people = peopleFromSummary(summary);
   const primary = people[0];
-  const estimateLabel = primary?.estimateType === 'personalized'
+  const allPersonalized = people.length > 0
+    && people.every((person) => person.estimateType === 'personalized');
+  const allComplete = people.length > 0
+    && people.every((person) => isCompleteLongevityProfile(person.profile));
+  const estimateLabel = allPersonalized
     ? 'Personalized estimate'
     : 'SSA population estimate';
+  const unansweredHint = formatUnansweredHint(people);
+  const modelPendingNote = allComplete && !allPersonalized ? MODEL_PENDING_NOTE : null;
   const sourceDisclosure = primary?.sourceDisclosure
     || 'SSA 2023 period life table. Population estimate based on age and sex, using 2023 mortality rates without projected future improvement.';
 
@@ -117,6 +166,8 @@ export const buildLifeExpectancyPresentation = (summary) => {
 
   return {
     estimateLabel,
+    unansweredHint,
+    modelPendingNote,
     sourceDisclosure,
     cards,
     householdExplanation: buildHouseholdExplanation(summary),

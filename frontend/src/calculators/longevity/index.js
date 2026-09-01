@@ -13,7 +13,7 @@ export {
   yearEndDate
 } from './dateMath';
 export { hazardToQx, qxToHazard, survivalForFraction } from './hazardMath';
-export { getIndividualLongevity, survivalToDate } from './individualSurvival';
+export { getIndividualLongevity, startAgeFor, survivalToDate } from './individualSurvival';
 export { getHouseholdLongevity } from './householdSurvival';
 export { buildLongevitySummary, getHouseholdCapYear, roundAxisEnd } from './summary';
 export {
@@ -21,8 +21,10 @@ export {
   getAnnualQx,
   getCalibrationDistribution,
   getRelativeHazard,
-  isCompleteLongevityProfile
+  isCompleteLongevityProfile,
+  unansweredLongevityFields
 } from './personalization';
+export { getProductionNhisArtifact } from './nhisArtifact';
 export {
   fixedAsOfDate,
   mary,

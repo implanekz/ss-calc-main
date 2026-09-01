@@ -1,10 +1,17 @@
 import { parseLocalIsoDate, startOfLocalDay, yearEndDate } from './dateMath';
-import { survivalToDate } from './individualSurvival';
+import { startAgeFor, survivalToDate } from './individualSurvival';
 
 const MAX_SSA_AGE = 119;
 const THRESHOLD_PROBABILITIES = [75, 50, 25];
 
-const lastSupportedYear = (person) => parseLocalIsoDate(person.birthDate).getFullYear() + MAX_SSA_AGE;
+const lastSupportedYear = (person, asOf) => {
+  const birth = parseLocalIsoDate(person.birthDate);
+  const startAge = startAgeFor(person, asOf);
+  return Math.min(
+    birth.getFullYear() + MAX_SSA_AGE,
+    asOf.getFullYear() + (MAX_SSA_AGE - startAge)
+  );
+};
 
 const eitherAliveFromIndividuals = (people, individualSurvival) =>
   1 - people.reduce(
@@ -14,7 +21,7 @@ const eitherAliveFromIndividuals = (people, individualSurvival) =>
 
 export const getHouseholdLongevity = ({ people, asOfDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
-  const endYear = Math.min(...people.map(lastSupportedYear));
+  const endYear = Math.min(...people.map((person) => lastSupportedYear(person, asOf)));
   const curve = [];
 
   for (let year = asOf.getFullYear(); year <= endYear; year += 1) {

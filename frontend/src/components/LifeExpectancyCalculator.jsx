@@ -15,6 +15,7 @@ import { useDevMode } from '../contexts/DevModeContext';
 import { buildLongevitySummary } from '../calculators/longevity/summary';
 import { buildLifeExpectancyPresentation } from '../calculators/longevity/presentation';
 import { attainedWholeAge } from '../calculators/longevity/dateMath';
+import { getProductionNhisArtifact } from '../calculators/longevity/nhisArtifact';
 import {
     hasPartnerBirthDate,
     resolveBirthDate,
@@ -34,6 +35,10 @@ const startOfLocalDay = (value) => {
 };
 
 const isSupportedSex = (sex) => sex === 'male' || sex === 'female';
+const AGE_SLIDER_MIN = 55;
+const AGE_SLIDER_MAX = 100;
+
+const clampSliderAge = (age) => Math.min(AGE_SLIDER_MAX, Math.max(AGE_SLIDER_MIN, age));
 
 const HealthSelector = ({ health, setHealth }) => (
     <div className="space-y-3">
@@ -85,7 +90,7 @@ const HealthSelector = ({ health, setHealth }) => (
     </div>
 );
 
-const AgeDisplay = ({ name, age, possessiveLabel }) => (
+const AgeSlider = ({ name, age, onChange, possessiveLabel }) => (
     <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
             {name ? `${name}'s current age` : possessiveLabel}
@@ -98,10 +103,16 @@ const AgeDisplay = ({ name, age, possessiveLabel }) => (
             </div>
         ) : (
             <div className="text-center mt-2">
-                <div className="text-4xl font-bold text-primary-600">{age}</div>
-                <a href="/settings" className="text-xs text-gray-500 underline">
-                    Change date of birth in your profile
-                </a>
+                <input
+                    type="range"
+                    min={AGE_SLIDER_MIN}
+                    max={AGE_SLIDER_MAX}
+                    value={age}
+                    aria-label={name ? `${name}'s current age` : possessiveLabel}
+                    onChange={(event) => onChange(Number(event.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-primary-400 to-purple-400 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="text-4xl font-bold text-primary-600 mt-2">{age}</div>
             </div>
         )}
     </div>
@@ -122,7 +133,9 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
     const [currentView, setCurrentView] = useState('graph');
     const [hasLoadedPrefs, setHasLoadedPrefs] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [sliderAgesByPersonId, setSliderAgesByPersonId] = useState({});
     const saveTimeoutRef = useRef(null);
+    const sliderBirthDatesRef = useRef({});
 
     useEffect(() => {
         if (hasLoadedPrefs) {
@@ -190,39 +203,60 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
     }, [effectiveCalcType, profilesByPersonId, hasLoadedPrefs, saveSettings]);
 
     const today = useMemo(() => startOfLocalDay(asOfDateProp), [asOfDateProp]);
+    const modelArtifact = useMemo(() => getProductionNhisArtifact(), []);
+
+    const sliderAgeFor = useCallback((personId, birthDate) => {
+        if (!birthDate) {
+            return null;
+        }
+        if (sliderBirthDatesRef.current[personId] === birthDate && Number.isFinite(sliderAgesByPersonId[personId])) {
+            return sliderAgesByPersonId[personId];
+        }
+        return clampSliderAge(attainedWholeAge(birthDate, today));
+    }, [sliderAgesByPersonId, today]);
+
+    const setSliderAge = (personId, birthDate, age) => {
+        sliderBirthDatesRef.current[personId] = birthDate;
+        setSliderAgesByPersonId((current) => ({ ...current, [personId]: age }));
+    };
+
     const people = useMemo(() => {
         const records = [];
         if (primaryPersonId) {
+            const birthDate = resolveBirthDate(profile);
             records.push({
                 personId: primaryPersonId,
                 name: resolveFirstName(profile, 'You'),
-                birthDate: resolveBirthDate(profile),
+                birthDate,
+                currentAge: sliderAgeFor(primaryPersonId, birthDate),
                 sex: profilesByPersonId[primaryPersonId]?.sex || null,
                 profile: profilesByPersonId[primaryPersonId] || emptyLongevityProfile()
             });
         }
         if (effectiveCalcType === 'couple' && (partnerPersonId || partners?.[0])) {
             const spouseId = partnerPersonId || 'partner';
+            const birthDate = resolveBirthDate(partners[0]);
             records.push({
                 personId: spouseId,
                 name: resolveFirstName(partners[0], 'Spouse'),
-                birthDate: resolveBirthDate(partners[0]),
+                birthDate,
+                currentAge: sliderAgeFor(spouseId, birthDate),
                 sex: profilesByPersonId[spouseId]?.sex || null,
                 profile: profilesByPersonId[spouseId] || emptyLongevityProfile()
             });
         }
         return records;
-    }, [effectiveCalcType, partnerPersonId, partners, primaryPersonId, profile, profilesByPersonId]);
+    }, [effectiveCalcType, partnerPersonId, partners, primaryPersonId, profile, profilesByPersonId, sliderAgeFor]);
 
     const summary = useMemo(
-        () => buildLongevitySummary({ people, asOfDate: today }),
-        [people, today]
+        () => buildLongevitySummary({ people, asOfDate: today, modelArtifact }),
+        [people, today, modelArtifact]
     );
     const presentation = useMemo(() => buildLifeExpectancyPresentation(summary), [summary]);
     const primary = people[0];
     const spouse = people[1];
-    const primaryAge = primary?.birthDate ? attainedWholeAge(primary.birthDate, today) : null;
-    const spouseAge = spouse?.birthDate ? attainedWholeAge(spouse.birthDate, today) : null;
+    const primaryAge = sliderAgeFor(primaryPersonId, primary?.birthDate);
+    const spouseAge = sliderAgeFor(spouse?.personId, spouse?.birthDate);
 
     const primarySexReady = isSupportedSex(primary?.sex);
     const spouseSexReady = effectiveCalcType !== 'couple' || isSupportedSex(spouse?.sex);
@@ -386,10 +420,15 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
                             {primaryPersonId ? (
                                 <GenderSelector
                                     personId={primaryPersonId}
-                                    label={primary?.name && primary.name !== 'You' ? `${primary.name}'s sex` : 'Your sex'}
+                                    label={primary?.name && primary.name !== 'You' ? `${primary.name}'s gender` : 'Your gender'}
                                 />
                             ) : null}
-                            <AgeDisplay name={primary?.name === 'You' ? null : primary?.name} age={primaryAge} possessiveLabel="Your current age" />
+                            <AgeSlider
+                                name={primary?.name === 'You' ? null : primary?.name}
+                                age={primaryAge}
+                                possessiveLabel="Your current age"
+                                onChange={(age) => setSliderAge(primaryPersonId, primary?.birthDate, age)}
+                            />
                         </div>
                         {effectiveCalcType === 'couple' ? (
                             <div className="space-y-4">
@@ -401,22 +440,34 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
                                 {partnerPersonId || partners?.[0] ? (
                                     <GenderSelector
                                         personId={partnerPersonId || 'partner'}
-                                        label={spouse?.name && spouse.name !== 'Spouse' ? `${spouse.name}'s sex` : 'Spouse sex'}
+                                        label={spouse?.name && spouse.name !== 'Spouse' ? `${spouse.name}'s gender` : 'Spouse gender'}
                                     />
                                 ) : (
                                     <p className="text-sm text-gray-600">Add a spouse in your profile to estimate how long at least one of you may live.</p>
                                 )}
-                                <AgeDisplay name={spouse?.name === 'Spouse' ? null : spouse?.name} age={spouseAge} possessiveLabel="Spouse current age" />
+                                <AgeSlider
+                                    name={spouse?.name === 'Spouse' ? null : spouse?.name}
+                                    age={spouseAge}
+                                    possessiveLabel="Spouse current age"
+                                    onChange={(age) => setSliderAge(spouse?.personId, spouse?.birthDate, age)}
+                                />
                             </div>
                         ) : null}
                     </div>
 
                     <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h3 className="font-bold text-gray-800">Your Health Profile</h3>
-                            <span className="text-xs font-semibold bg-gradient-to-r from-primary-600 to-purple-600 text-white px-2 py-0.5 rounded-full">{presentation.estimateLabel}</span>
+                            <span className="text-xs font-semibold bg-gradient-to-r from-primary-600 to-purple-600 text-white px-2 py-0.5 rounded-full">
+                                {presentation.unansweredHint
+                                    ? `SSA population estimate — ${presentation.unansweredHint}`
+                                    : presentation.estimateLabel}
+                            </span>
                         </div>
-                        <div className={`grid gap-6 ${effectiveCalcType === 'couple' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
+                        {presentation.modelPendingNote ? (
+                            <p className="text-xs text-gray-600 mb-4">{presentation.modelPendingNote}</p>
+                        ) : null}
+                        <div className={`grid gap-6 mt-4 ${effectiveCalcType === 'couple' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
                             {primaryPersonId && (
                                 <div>
                                     {effectiveCalcType === 'couple' && (
@@ -457,15 +508,20 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
                                     className="bg-blue-50 rounded-xl p-4 text-center"
                                     title={card.tooltip}
                                 >
-                                    <div className="text-sm font-semibold text-gray-600 mb-1">
-                                        {card.year != null || card.namesAndAges
-                                            ? `${card.probability}% chance at least one of you is alive in`
-                                            : `${card.probability}% chance you will live to at least age`}
+                                    <div data-card-primary className="text-4xl font-extrabold text-gray-900 leading-none">
+                                        {card.primaryMetric}
                                     </div>
-                                    <div className="text-4xl font-bold text-gray-900">{card.displayValue ?? card.age ?? card.year}</div>
-                                    <div className="text-sm text-gray-600 mt-1">
-                                        {card.namesAndAges || 'years old'}
+                                    <div data-card-secondary className="text-3xl font-bold text-gray-900 mt-2 leading-tight">
+                                        {card.secondaryMetric}
                                     </div>
+                                    <div className="text-sm text-gray-600 mt-2">
+                                        {card.kicker}
+                                    </div>
+                                    {card.namesAndAges ? (
+                                        <div className="text-sm text-gray-600 mt-1">
+                                            {card.namesAndAges}
+                                        </div>
+                                    ) : null}
                                 </div>
                             ))}
                         </div>

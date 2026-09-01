@@ -46,6 +46,42 @@ describe('longevity personalization', () => {
     expect(isCompleteLongevityProfile({ ...completeTedProfile, health: null })).toBe(false);
   });
 
+  test('complete profiles stay on SSA until a model artifact is provided', () => {
+    const withoutModel = buildLongevitySummary({
+      people: [{ ...ted, profile: completeTedProfile }],
+      asOfDate: fixedAsOfDate
+    });
+    const withModel = buildLongevitySummary({
+      people: [{ ...ted, profile: completeTedProfile }],
+      asOfDate: fixedAsOfDate,
+      modelArtifact: nhisArtifact
+    });
+    expect(withoutModel.individuals.ted.estimateType).toBe('ssa-population');
+    expect(withModel.individuals.ted.estimateType).toBe('personalized');
+    expect(withModel.individuals.ted.thresholds[50]).not.toBe(
+      withoutModel.individuals.ted.thresholds[50]
+    );
+  });
+
+  test('complete current-smoker vs never-smoker changes 50% ages when a model artifact is provided', () => {
+    const neverSmoker = buildLongevitySummary({
+      people: [{ ...ted, profile: completeTedProfile }],
+      asOfDate: fixedAsOfDate,
+      modelArtifact: nhisArtifact
+    });
+    const currentSmoker = buildLongevitySummary({
+      people: [{ ...ted, profile: { ...completeTedProfile, smoking: 'current' } }],
+      asOfDate: fixedAsOfDate,
+      modelArtifact: nhisArtifact
+    });
+    expect(currentSmoker.individuals.ted.thresholds[50])
+      .toBeLessThan(neverSmoker.individuals.ted.thresholds[50]);
+    const midAge = neverSmoker.individuals.ted.thresholds[50];
+    const neverSurvival = neverSmoker.individuals.ted.curve.find((point) => point.age === midAge).survival;
+    const currentSurvival = currentSmoker.individuals.ted.curve.find((point) => point.age === midAge).survival;
+    expect(currentSurvival).toBeLessThan(neverSurvival);
+  });
+
   test('a malformed model degrades the summary to SSA and emits a diagnostic', () => {
     const onDiagnostic = jest.fn();
     const artifactMissingHealthCoefficient = JSON.parse(JSON.stringify(nhisArtifact));

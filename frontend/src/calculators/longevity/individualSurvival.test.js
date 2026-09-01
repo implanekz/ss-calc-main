@@ -22,6 +22,28 @@ describe('individual survival', () => {
     );
   });
 
+  test('currentAge starts the survival curve at that attained age without changing birthDate', () => {
+    const defaulted = getIndividualLongevity({
+      person: { personId: 'ted', name: 'Ted', sex: 'male', birthDate: '1965-06-15' },
+      asOfDate: new Date(2026, 7, 31)
+    });
+    const conditioned = getIndividualLongevity({
+      person: {
+        personId: 'ted',
+        name: 'Ted',
+        sex: 'male',
+        birthDate: '1965-06-15',
+        currentAge: 70
+      },
+      asOfDate: new Date(2026, 7, 31)
+    });
+    expect(conditioned.birthDate).toBe('1965-06-15');
+    expect(defaulted.curve[0].age).toBe(61);
+    expect(conditioned.curve[0].age).toBe(70);
+    expect(conditioned.curve[0].survival).toBe(1);
+    expect(conditioned.thresholds[50]).toBeGreaterThan(defaulted.thresholds[50]);
+  });
+
   test('whole-age threshold is the greatest birthday whose survival meets the probability', () => {
     const result = getIndividualLongevity({
       person: { personId: 'ted', name: 'Ted', sex: 'male', birthDate: '1965-06-15' },

@@ -6,6 +6,7 @@ import {
   getSsaQx,
   ssaArtifact
 } from './artifacts';
+import { getProductionNhisArtifact } from './nhisArtifact';
 
 describe('SSA artifact accessors', () => {
   test('canonical row encoding matches language-neutral format', () => {
@@ -34,5 +35,9 @@ describe('SSA artifact accessors', () => {
   test('getHeadlineLifeExpectancy is SSA life expectancy at birth', () => {
     expect(getHeadlineLifeExpectancy('male')).toBe(ssaArtifact.data.male[0].ex);
     expect(getHeadlineLifeExpectancy('female')).toBe(ssaArtifact.data.female[0].ex);
+  });
+
+  test('production has no NHIS personalization artifact until validation passes', () => {
+    expect(getProductionNhisArtifact()).toBeNull();
   });
 });

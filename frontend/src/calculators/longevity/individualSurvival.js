@@ -18,6 +18,11 @@ const annualQx = (person, age, modelArtifact) => getAnnualQx({
   modelArtifact
 });
 
+export const startAgeFor = (person, asOfDate) => {
+  const dobAge = attainedWholeAge(person.birthDate, asOfDate);
+  return Number.isFinite(person.currentAge) ? person.currentAge : dobAge;
+};
+
 export const survivalToDate = ({ person, asOfDate, targetDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
   const target = startOfLocalDay(targetDate);
@@ -29,13 +34,15 @@ export const survivalToDate = ({ person, asOfDate, targetDate, modelArtifact }) 
   }
 
   const birth = parseLocalIsoDate(person.birthDate);
+  const ageOffset = startAgeFor(person, asOf) - attainedWholeAge(birth, asOf);
   let survival = 1;
   let cursor = asOf;
 
   while (cursor < target) {
-    const age = attainedWholeAge(birth, cursor);
-    const intervalEnd = birthdayAtAge(birth, age + 1);
-    const intervalDays = daysBetween(birthdayAtAge(birth, age), intervalEnd);
+    const dobAge = attainedWholeAge(birth, cursor);
+    const age = dobAge + ageOffset;
+    const intervalEnd = birthdayAtAge(birth, dobAge + 1);
+    const intervalDays = daysBetween(birthdayAtAge(birth, dobAge), intervalEnd);
     const stepEnd = target < intervalEnd ? target : intervalEnd;
     const fraction = daysBetween(cursor, stepEnd) / intervalDays;
     survival *= survivalForFraction(annualQx(person, age, modelArtifact), fraction);
@@ -48,11 +55,12 @@ export const survivalToDate = ({ person, asOfDate, targetDate, modelArtifact }) 
 export const getIndividualLongevity = ({ person, asOfDate, modelArtifact }) => {
   const asOf = startOfLocalDay(asOfDate);
   const birth = parseLocalIsoDate(person.birthDate);
-  const currentAge = attainedWholeAge(birth, asOf);
+  const dobAge = attainedWholeAge(birth, asOf);
+  const currentAge = startAgeFor(person, asOf);
   const curve = [];
 
   if (currentAge >= 0 && currentAge <= MAX_SSA_AGE) {
-    const currentBirthday = birthdayAtAge(birth, currentAge);
+    const currentBirthday = birthdayAtAge(birth, dobAge);
     curve.push({
       age: currentAge,
       date: currentBirthday,
@@ -62,7 +70,7 @@ export const getIndividualLongevity = ({ person, asOfDate, modelArtifact }) => {
   }
 
   for (let age = currentAge + 1; age <= MAX_SSA_AGE; age += 1) {
-    const date = birthdayAtAge(birth, age);
+    const date = birthdayAtAge(birth, dobAge + (age - currentAge));
     curve.push({
       age,
       date,

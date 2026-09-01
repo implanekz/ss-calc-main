@@ -13,6 +13,11 @@ export class MortalityModelError extends Error {
 }
 
 const PROFILE_FIELDS = ['smoking', 'education', 'health'];
+export const LONGEVITY_PROFILE_FIELD_LABELS = {
+  smoking: 'smoking status',
+  education: 'education',
+  health: 'current health'
+};
 const REFERENCE = {
   smoking: 'never',
   education: 'college',
@@ -20,11 +25,10 @@ const REFERENCE = {
 };
 const AGE_BAND = (age) => (age >= 80 ? '80+' : age >= 70 ? '70-79' : '60-69');
 
-export const isCompleteLongevityProfile = (profile) =>
-  Boolean(
-    profile
-    && PROFILE_FIELDS.every((field) => typeof profile[field] === 'string' && profile[field].length > 0)
-  );
+export const unansweredLongevityFields = (profile) =>
+  PROFILE_FIELDS.filter((field) => !(typeof profile?.[field] === 'string' && profile[field].length > 0));
+
+export const isCompleteLongevityProfile = (profile) => unansweredLongevityFields(profile).length === 0;
 
 const coefficient = (artifact, field, value) => {
   if (value === REFERENCE[field]) {

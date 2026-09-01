@@ -125,6 +125,7 @@ const summarizePerson = ({ person, asOfDate, modelArtifact }) => {
   );
   return {
     ...longevity,
+    profile: person.profile || null,
     headlineAge: getHeadlineLifeExpectancy(person.sex),
     sourceDisclosure: sourceDisclosureFor(longevity, modelArtifact)
   };
