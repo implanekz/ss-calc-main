@@ -27,7 +27,7 @@
 - Chart age range fixed **62 → 95**. Not adjustable.
 - Married = every dollar figure **× 2**.
 - SSA age factors (FRA 67): `{62:0.70, 63:0.75, 64:0.80, 65:0.8666667, 66:0.9333333, 67:1.00, 68:1.08, 69:1.16, 70:1.24}`.
-- Both solid lines are **green** — filed-at-62 is light/thin (`#4ade80`), collecting-from-70 is bold/saturated (`#16a34a`). Waiting line is **dotted gray**.
+- Filed-at-62 line is **amber `#E39234`** (owner revision 2026-09-02, was green `#4ade80`); collecting-from-70 line is **bold green `#16a34a`**. Waiting line is **dotted gray**.
 - Legend numbers are **red** until the playhead reaches 70, when the right-hand number turns **green**.
 - Respect `prefers-reduced-motion`: skip the sweep, render the full chart, playhead at 62 and draggable immediately.
 - Frequent commits — every task ends with a commit in the app folder's repo.

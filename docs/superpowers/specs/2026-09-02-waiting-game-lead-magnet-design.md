@@ -60,13 +60,13 @@ Let `Y` = age, `pia = 2075`, `cola(Y) = 1.025^(Y - 62)`.
 
 | Line | Visual | Value at age `Y` | Age span |
 |---|---|---|---|
-| **Filed at 62** | solid, light/thin green, gentle slope | `pia * 0.70 * cola(Y)` | 62 → 95 |
+| **Filed at 62** | solid amber `#E39234`, gentle slope | `pia * 0.70 * cola(Y)` | 62 → 95 |
 | **Waiting (accrual)** | dotted gray, steep rise | `pia * factor(Y) * cola(Y)` | 62 → 70 |
-| **Collecting from 70** | solid, bold green | `(pia * 1.24 * cola(70)) * 1.025^(Y - 70)` | 70 → 95 |
+| **Collecting from 70** | solid, bold green `#16a34a` | `(pia * 1.24 * cola(70)) * 1.025^(Y - 70)` | 70 → 95 |
 
-Both solid lines are green (both are Social Security income), but must be
-clearly distinguishable — the filed-at-62 line is lighter and thinner, the
-collecting line is bold and saturated. This follows the owner's sketch.
+The filed-at-62 line is amber and the collecting line is green — an owner
+revision (2026-09-02) from the original all-green sketch, so the "lesser path"
+reads as a different hue, not just a lighter green.
 
 The waiting line and the collecting line are continuous at age 70
 (≈ $3,135/mo single). The waiting line is drawn from 9 yearly points (62–70)
@@ -149,7 +149,7 @@ No delta between the two numbers in v1 (see §10).
   (≈ $1,453 single); y-scale starts at 0.
 - **Above the chart:** title, one-line subtitle, and the Single / Married
   toggle (segmented control).
-- **Below the chart:** a one-line color key — "light green = filed at 62 ·
+- **Below the chart:** a one-line color key — "amber = filed at 62 ·
   dotted = what waiting earns you · bold green = your check from 70 on" — plus
   the Replay button and the drag caption.
 - All copy is placeholder for the owner to refine later.
