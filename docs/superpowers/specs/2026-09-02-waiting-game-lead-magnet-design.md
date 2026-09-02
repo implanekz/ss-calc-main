@@ -145,8 +145,8 @@ No delta between the two numbers in v1 (see §10).
 - **X-axis:** labelled ticks at **62** and **70**; a faint tick at 95. No
   calendar years anywhere.
 - **Y-axis:** no numeric labels (illustrative). A baseline and at most 2–3 very
-  faint horizontal gridlines. Lines originate at the $2,075 height, y-scale
-  starts at 0.
+  faint horizontal gridlines. Both lines originate at the age-62 check height
+  (≈ $1,453 single); y-scale starts at 0.
 - **Above the chart:** title, one-line subtitle, and the Single / Married
   toggle (segmented control).
 - **Below the chart:** a one-line color key — "light green = filed at 62 ·
