@@ -32,10 +32,17 @@ Not wired into the React calculator app in any way.
 All figures are **illustrative and non-specific**. No calendar years appear
 anywhere in the UI.
 
+> **Revision 2026-09-02 (post-implementation):** `$2,075` is the **PIA (the
+> full-retirement-age benefit)**, not the age-62 check. The age-62 filer
+> receives 70% of it ≈ **$1,453**. Earlier drafts of this spec treated
+> `$2,075` as the age-62 amount and back-derived a `$2,964` PIA; that is
+> superseded. Because the change is a uniform 0.70 scaling of every line, the
+> animation and chart geometry are unchanged — only the dollar figures move.
+
 | Assumption | Value | Notes |
 |---|---|---|
-| Age-62 monthly check | **$2,075** | 2026 average retirement benefit |
-| Implied PIA at FRA 67 | **$2,964.29** | $2,075 ÷ 0.70 |
+| PIA at FRA 67 | **$2,075** | illustrative round figure; the FRA benefit |
+| Age-62 monthly check | **≈ $1,453** | 70% of PIA — the FRA-67 early-filing reduction |
 | FRA | **67** | born 1960 or later |
 | COLA | **2.5% / year** | compounds every year from age 62 onward, including years before the person claims |
 | Chart age range | **62 to 95** | fixed, not adjustable |
@@ -49,11 +56,11 @@ SSA age-adjustment factors (FRA 67), applied to PIA:
 
 ## 4. The three lines
 
-Let `Y` = age, `pia = 2964.29`, `cola(Y) = 1.025^(Y - 62)`.
+Let `Y` = age, `pia = 2075`, `cola(Y) = 1.025^(Y - 62)`.
 
 | Line | Visual | Value at age `Y` | Age span |
 |---|---|---|---|
-| **Filed at 62** | solid, light/thin green, gentle slope | `2075 * cola(Y)` | 62 → 95 |
+| **Filed at 62** | solid, light/thin green, gentle slope | `pia * 0.70 * cola(Y)` | 62 → 95 |
 | **Waiting (accrual)** | dotted gray, steep rise | `pia * factor(Y) * cola(Y)` | 62 → 70 |
 | **Collecting from 70** | solid, bold green | `(pia * 1.24 * cola(70)) * 1.025^(Y - 70)` | 70 → 95 |
 
@@ -62,31 +69,34 @@ clearly distinguishable — the filed-at-62 line is lighter and thinner, the
 collecting line is bold and saturated. This follows the owner's sketch.
 
 The waiting line and the collecting line are continuous at age 70
-(≈ $4,478/mo single). The waiting line is drawn from 9 yearly points (62–70)
+(≈ $3,135/mo single). The waiting line is drawn from 9 yearly points (62–70)
 connected by straight segments.
 
 ### 4.1 Reference values (single earner, rounded)
 
 | Age | Filed at 62 | Waiting / Collecting |
 |---|---|---|
-| 62 | $2,075 | $2,075 |
-| 63 | $2,127 | $2,279 |
-| 64 | $2,180 | $2,491 |
-| 65 | $2,235 | $2,767 |
-| 66 | $2,290 | $3,054 |
-| 67 | $2,348 | $3,353 |
-| 68 | $2,406 | $3,713 |
-| 69 | $2,467 | $4,087 |
-| 70 | $2,528 | $4,478 |
-| 75 | $2,860 | $5,067 |
-| 80 | $3,236 | $5,733 |
-| 85 | $3,662 | $6,486 |
-| 90 | $4,143 | $7,338 |
-| 95 | $4,687 | $8,303 |
+| 62 | $1,453 | $1,453 |
+| 63 | $1,489 | $1,595 |
+| 64 | $1,526 | $1,744 |
+| 65 | $1,564 | $1,937 |
+| 66 | $1,603 | $2,138 |
+| 67 | $1,643 | $2,348 |
+| 68 | $1,684 | $2,599 |
+| 69 | $1,727 | $2,862 |
+| 70 | $1,770 | $3,135 |
+| 75 | $2,002 | $3,547 |
+| 80 | $2,265 | $4,013 |
+| 85 | $2,563 | $4,540 |
+| 90 | $2,900 | $5,137 |
+| 95 | $3,281 | $5,812 |
+
+`at70` (junction where the dotted line meets the green line) = **$3,134.95**.
 
 Married = every value doubled. These are the numbers the finished app must
-reproduce (±$1 rounding); they are computed directly from the formulas in §4,
-not from the calculator app's projection engine.
+reproduce (±$2 rounding); they are computed directly from the formulas in §4,
+not from the calculator app's projection engine. The repo's dev-only
+`verify.mjs` asserts this table.
 
 ## 5. Animation (on load)
 

@@ -10,42 +10,62 @@
 
 ## Global Constraints
 
+> **Revision 2026-09-02 (post-implementation, fix round 2):** `$2,075` is now
+> the **PIA (FRA benefit)**, not the age-62 check. Age-62 = 70% of PIA ≈
+> `$1,453`. `PIA = 2075`; `AGE62_CHECK = PIA * 0.70 = 1452.5` (derived). The
+> canonical table below and every inline expected value in Tasks 1/3/6/8 that
+> predates this note are superseded by the **Revised canonical reference
+> values** table. Uniform 0.70 scaling → the chart geometry / animation are
+> unchanged. The repo's `verify.mjs` is the living guard.
+
 - App file path: `/Users/kurtzahner/New 62-70 Benefit App/index.html` (a git repo initialised in that folder in Task 1; **not** the `ss-calc-main` repo).
 - Single file. All CSS and JS inline. **Zero external requests** — no CDN, no web fonts, no analytics. System font stack only.
 - Must open correctly from `file://` and from a static server.
 - All dollar figures are illustrative. **No calendar years anywhere in the UI.**
-- Age-62 check = **$2,075**. Implied PIA at FRA 67 = **$2,075 ÷ 0.70 = 2964.285714…**.
+- **PIA at FRA 67 = `$2,075`.** Age-62 check = `PIA * 0.70 = $1,452.5` (≈ $1,453). `const PIA = 2075; const AGE62_CHECK = PIA * FACTOR[62];`
 - COLA = **2.5%/year**, compounding from age 62 onward (including pre-claim years).
 - Chart age range fixed **62 → 95**. Not adjustable.
 - Married = every dollar figure **× 2**.
 - SSA age factors (FRA 67): `{62:0.70, 63:0.75, 64:0.80, 65:0.8666667, 66:0.9333333, 67:1.00, 68:1.08, 69:1.16, 70:1.24}`.
-- Both solid lines are **green** — filed-at-62 is light/thin, collecting-from-70 is bold/saturated. Waiting line is **dotted gray**.
+- Both solid lines are **green** — filed-at-62 is light/thin (`#4ade80`), collecting-from-70 is bold/saturated (`#16a34a`). Waiting line is **dotted gray**.
 - Legend numbers are **red** until the playhead reaches 70, when the right-hand number turns **green**.
 - Respect `prefers-reduced-motion`: skip the sweep, render the full chart, playhead at 62 and draggable immediately.
 - Frequent commits — every task ends with a commit in the app folder's repo.
 
-## Canonical reference values (single earner)
+## Revised canonical reference values (single earner) — PIA = $2,075
 
-Tests assert against these with **±2** tolerance (rounded dollars). Married = ×2.
+Tests / `verify.mjs` assert against these with **±2** tolerance (rounded
+dollars). Married = ×2.
+
+| Age | Filed at 62 | Waiting / Collecting |
+|---|---|---|
+| 62 | 1453 | 1453 |
+| 63 | 1489 | 1595 |
+| 64 | 1526 | 1744 |
+| 65 | 1564 | 1937 |
+| 66 | 1603 | 2138 |
+| 67 | 1643 | 2348 |
+| 68 | 1684 | 2599 |
+| 69 | 1727 | 2862 |
+| 70 | 1770 | 3135 |
+| 75 | 2002 | 3547 |
+| 80 | 2265 | 4013 |
+| 85 | 2563 | 4540 |
+| 90 | 2900 | 5137 |
+| 95 | 3281 | 5812 |
+
+`at70` (value where the dotted line meets the green line) = **3134.95** single.
+
+<details><summary>Superseded original table (PIA = $2,964, $2,075 as age-62 check)</summary>
 
 | Age | Filed at 62 | Waiting / Collecting |
 |---|---|---|
 | 62 | 2075 | 2075 |
-| 63 | 2127 | 2279 |
-| 64 | 2180 | 2491 |
-| 65 | 2235 | 2767 |
-| 66 | 2290 | 3054 |
-| 67 | 2348 | 3354 |
-| 68 | 2406 | 3713 |
-| 69 | 2467 | 4087 |
 | 70 | 2528 | 4479 |
-| 75 | 2860 | 5067 |
-| 80 | 3236 | 5733 |
-| 85 | 3662 | 6486 |
-| 90 | 4143 | 7339 |
 | 95 | 4687 | 8303 |
 
-`at70` (value where the dotted line meets the green line) = **4478.50** single.
+`at70` = 4478.50. Inline task-step numbers from before the revision follow this scale.
+</details>
 
 ## File Structure
 
