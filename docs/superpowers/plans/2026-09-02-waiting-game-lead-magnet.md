@@ -494,10 +494,12 @@ Re-run Step 2. Expected:
 {
   "a": { "leftLabel": "Filed at 62", "leftVal": "$2,235", "rightLabel": "If you claim at 65",
          "rightVal": "$2,767", "rightClass": "amt neg" },
-  "b": { "rightLabel": "Your check", "rightVal": "$5,733", "rightClass": "amt pos" }
+  "b": { "rightLabel": "Your check", "rightVal": "$4,705", "rightClass": "amt pos" }
 }
 ```
-(±2 on the dollar values.)
+(±2 on the dollar values.) Case `b` is `setAge(72)` → `collecting[72-70]` =
+`at70 * 1.025^2` ≈ $4,705 (the check at age 72). The right cell always shows
+the collecting line **at the playhead age**, indexed `collecting[age-70]`.
 
 - [ ] **Step 5: Commit**
 
