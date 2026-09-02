@@ -697,10 +697,33 @@ git add -A && git commit -m "feat: 10s sweep animation with progressive reveal a
 - Modify: `/Users/kurtzahner/New 62-70 Benefit App/index.html`
 
 **Interfaces:**
-- Consumes: `xScale`, `PLOT`, `setAge`, `phHandle`, `svg` from earlier tasks.
+- Consumes: `xScale`, `PLOT`, `setAge`, `phHandle`, `svg`, `movePlayhead`, `runSweep`, `finishSweep` from earlier tasks.
 - Produces:
   - `enableDrag()` — attaches `pointerdown`/`pointermove`/`pointerup` (mouse + touch) to `#ph-handle` and the SVG. Idempotent (removes prior listeners first). Converts client X → SVG user X → nearest whole age (clamped 62..95) → `setAge(age)`. Lines are **not** re-truncated during drag (the reveal rect stays full-width).
   - `ageFromClientX(clientX:number) => number` — helper.
+  - `sweepComplete` module flag (init `false`) that freezes the reveal after the sweep.
+
+- [ ] **Step 0: Freeze the reveal after the sweep (`sweepComplete` flag)**
+
+`movePlayhead` currently writes `#reveal-rect` width on every call, so a
+post-sweep drag would re-truncate the lines — spec §6 says it must not. Gate it:
+
+1. Add a module var next to `sweepRaf`: `let sweepComplete = false;`
+2. In `movePlayhead`, wrap only the reveal write:
+   ```js
+   function movePlayhead(age) {
+     const x = xScale(age);
+     playhead.setAttribute('x1', x); playhead.setAttribute('x2', x);
+     phHandle.setAttribute('cx', x);
+     if (!sweepComplete) revealRect.setAttribute('width', Math.max(0, x - PLOT.x0));
+   }
+   ```
+3. At the top of `runSweep()` (with the other resets): `sweepComplete = false;`
+4. In `finishSweep()`, set `sweepComplete = true;` as the **first** line (before
+   `setAge(currentAge)`). Keep the explicit
+   `revealRect.setAttribute('width', PLOT.x1 - PLOT.x0);` that follows — with the
+   flag set, that line is now the only thing driving the reveal to full width on
+   both the normal and reduced-motion exits.
 
 - [ ] **Step 1: Write the failing verification**
 
@@ -765,7 +788,10 @@ Re-run Step 1. Expected:
 ```json
 { "age": 80, "rightLabel": "Your check", "revealUnchanged": true }
 ```
-Also drag to age 66 and assert `rightLabel` is `"If you claim at 66"` and the right value class is `amt neg`.
+`revealUnchanged: true` is the Step 0 flag working — the drag moved the playhead
+but the reveal rect stayed at full width. Also drag to age 66 and assert
+`rightLabel` is `"If you claim at 66"`, the right value class is `amt neg`, and
+`#reveal-rect` width is still unchanged (lines still fully drawn).
 
 - [ ] **Step 4: Manual pointer check via browser tools**
 
