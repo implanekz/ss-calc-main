@@ -48,7 +48,25 @@ const TAX_RATE_OPTIONS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0
 
 const ageOptions = Array.from({ length: 71 }, (_, idx) => 40 + idx);
 
-const computeNestEggNeeded = ({
+export const computeDrawdownSeries = ({
+  retirementAge,
+  planUntilAge,
+  startingBalance,
+  grossFirstYearIncome,
+  incomeInflation,
+  assumedReturnRetirement,
+}) => {
+  const series = [{ age: retirementAge, balance: startingBalance }];
+  let balance = startingBalance;
+  for (let age = retirementAge + 1; age <= planUntilAge; age += 1) {
+    const withdrawal = grossFirstYearIncome * ((1 + incomeInflation) ** (age - retirementAge - 1));
+    balance = balance * (1 + assumedReturnRetirement) - withdrawal;
+    series.push({ age, balance });
+  }
+  return series;
+};
+
+export const computeNestEggNeeded = ({
   annualIncomeGoalToday,
   retirementAge,
   currentAge,
@@ -196,16 +214,28 @@ const RetirementIncomeNeedsApp = () => {
     return series;
   }, [inputs]);
 
+  const drawdownSeries = useMemo(() => computeDrawdownSeries({
+    retirementAge: inputs.retirementAge,
+    planUntilAge: inputs.planUntilAge,
+    startingBalance: accumulationAtAssumed,
+    grossFirstYearIncome: nestEggInfo.grossFirstYearIncome,
+    incomeInflation: inputs.incomeInflation,
+    assumedReturnRetirement: inputs.assumedReturnRetirement,
+  }), [inputs.retirementAge, inputs.planUntilAge, inputs.incomeInflation, inputs.assumedReturnRetirement, accumulationAtAssumed, nestEggInfo]);
+
   const chartData = useMemo(() => {
     // Generate full age range from current age to plan until age
     const fullAgeRange = Array.from(
       { length: inputs.planUntilAge - inputs.currentAge + 1 },
       (_, i) => inputs.currentAge + i
     );
-    
-    // Create a map of accumulation data for quick lookup
-    const accumulationMap = new Map(accumulationSeries.map((row) => [row.age, row.balance]));
-    
+
+    // Create a map of accumulation + drawdown data for quick lookup
+    const projectionMap = new Map([
+      ...accumulationSeries.map((row) => [row.age, row.balance]),
+      ...drawdownSeries.map((row) => [row.age, row.balance]),
+    ]);
+
     return {
       labels: fullAgeRange,
       datasets: [
@@ -213,7 +243,7 @@ const RetirementIncomeNeedsApp = () => {
           type: 'line',
           label: 'Projected Nest Egg (assumed return)',
           data: fullAgeRange.map((age) => {
-            const value = accumulationMap.get(age);
+            const value = projectionMap.get(age);
             return value !== undefined ? Math.round(value) : null;
           }),
           borderColor: '#2563eb',
@@ -221,9 +251,18 @@ const RetirementIncomeNeedsApp = () => {
           fill: true,
           tension: 0.2,
           pointRadius: (ctx) => ctx.parsed?.y !== null ? 2 : 0,
+          pointBackgroundColor: (ctx) => ctx.parsed?.y < 0 ? '#dc2626' : '#2563eb',
+          pointBorderColor: (ctx) => ctx.parsed?.y < 0 ? '#dc2626' : '#2563eb',
           segment: {
-            borderColor: '#2563eb',
-            borderDash: (ctx) => ctx.p0.parsed?.y === null || ctx.p1.parsed?.y === null ? [5, 5] : undefined,
+            borderColor: (ctx) => {
+              if (ctx.p0.parsed?.y === null || ctx.p1.parsed?.y === null) return '#2563eb';
+              return ctx.p0.parsed.y < 0 || ctx.p1.parsed.y < 0 ? '#dc2626' : '#2563eb';
+            },
+            borderDash: (ctx) => {
+              if (ctx.p0.parsed?.y === null || ctx.p1.parsed?.y === null) return [5, 5];
+              const age = fullAgeRange[ctx.p0.dataIndex];
+              return age >= inputs.retirementAge ? [4, 3] : undefined;
+            },
           },
         },
         {
@@ -236,7 +275,7 @@ const RetirementIncomeNeedsApp = () => {
         },
       ],
     };
-  }, [accumulationSeries, inputs.currentAge, inputs.planUntilAge, nestEggInfo]);
+  }, [accumulationSeries, drawdownSeries, inputs.currentAge, inputs.planUntilAge, inputs.retirementAge, nestEggInfo]);
 
   const chartOptions = {
     responsive: true,
