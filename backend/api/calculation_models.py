@@ -166,6 +166,7 @@ class PIACalculationResult(BaseModel):
     lowest_year_in_top_35: float
     highest_year_in_top_35: float
     calculation_details: Dict[str, float]
+    awi_approximated: bool = False
 
 class WhatIfComparisonRequest(BaseModel):
     """Request to compare original vs modified earnings"""

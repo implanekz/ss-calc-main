@@ -1,0 +1,1650 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "nhis-linked-mortality-personalization",
+  "modelVersion": "nhis-lmf-2019-v1",
+  "sourceUrls": ["https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1997/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1997/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1997/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1997/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1998/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1998/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1998/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1998/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1999/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1999/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/1999/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/1999/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2000/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2000/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2000/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2000/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2001/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2001/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2002/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2002/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2002/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2002/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2003/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2003/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2003/samadult/SAMADULT.DAT", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2003/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2005/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2005/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2005/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2005/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2006/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2006/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2006/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2006/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2007/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2007/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2007/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2007/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2008/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2008/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2008/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2008/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2009/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2009/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2009/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2009/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2010/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2010/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2010/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2010/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2011/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2011/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2011/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2011/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2012/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2012/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2012/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2012/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2013/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2013/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2013/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2013/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2015/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2015/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2016/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2016/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2016/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2016/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2017/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2017/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2017/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2017/SAMADULT.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2018/personsx.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2018/PERSONSX.sas", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2018/samadult.zip", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Program_Code/NHIS/2018/SAMADULT.sas", "https://www.cdc.gov/nchs/linked-data/mortality-files/index.html", "https://www.cdc.gov/nchs/data/datalinkage/public-use-linked-mortality-file-description.pdf", "https://www.cdc.gov/nchs/data/datalinkage/public-use-linked-mortality-files-data-dictionary.pdf", "https://ftp.cdc.gov/pub/Health_statistics/NCHS/datalinkage/linked_mortality/R_ReadInProgramAllSurveys.R", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_1997_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_1998_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_1999_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2000_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2001_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2002_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2003_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2005_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2006_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2007_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2008_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2009_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2010_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2011_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2012_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2013_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2015_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2016_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2017_MORT_2019_PUBLIC.dat", "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/datalinkage/linked_mortality/NHIS_2018_MORT_2019_PUBLIC.dat", "https://www.ssa.gov/oact/STATS/table4c6.html"],
+  "cohorts": {
+    "development": {
+      "interview_years": [1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009],
+      "minimum_age": 60
+    },
+    "temporal_validation": {
+      "interview_years": [2010, 2011, 2012, 2013],
+      "minimum_age": 60
+    },
+    "production_fit": {
+      "interview_years": [1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013],
+      "minimum_age": 60
+    },
+    "calibration_target": {
+      "interview_years": [2015, 2016, 2017, 2018],
+      "minimum_age": 60,
+      "age_bands": ["60-69", "70-79", "80+"]
+    },
+    "mortality_followup_end": "2019-12-31"
+  },
+  "fitDate": "2026-09-01T04:31:21Z",
+  "softwareVersions": {
+    "R": "R version 4.5.1 (2025-06-13)",
+    "survey": "4.4.8",
+    "mice": "3.18.0",
+    "mitools": "2.4",
+    "haven": "2.5.5",
+    "jsonlite": "2.0.0",
+    "yaml": "2.3.10",
+    "digest": "0.6.37"
+  },
+  "referenceCategories": {
+    "smoking": "never",
+    "education": "college",
+    "health": "excellent"
+  },
+  "coefficients": {
+    "smoking": {
+      "former": 0.29281087557486296,
+      "current": 0.8108001689286779
+    },
+    "education": {
+      "some": 0.10799125002835072,
+      "high_school": 0.13892793327043801
+    },
+    "health": {
+      "good": 0.28218088461701846,
+      "fair": 0.70801407202653632
+    }
+  },
+  "calibrationProfileDistributions": {
+    "male": {
+      "60-69": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.011682303371337441
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0032852683632782543
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.0063574479042823933
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.021095447294435337
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.029409069623282727
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.027043114548682606
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.019476601012927582
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.014878837603358751
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.017597767909007959
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.076999017160976208
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.014153245358915068
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.030788335192524656
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.049209038980948569
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.038853767305390891
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.04985675631741443
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.058832834530126457
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.0222057848481272
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.043059819927831304
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.14866507409595597
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.015102093427507748
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.048011135419619426
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.055748541114547988
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.031925957806567269
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.049683369276929748
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.060615939182350385
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.019861879909508204
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.035601552514165448
+        }
+      ],
+      "70-79": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.0090755346442010828
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0029749400837054702
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.0057269358156723125
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.012704529274957944
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.021405982931245314
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.020927924582317136
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.0095165147717522752
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.0063391355163864103
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.0075946225653463406
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.092404522392395577
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.019726458258737055
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.043103603887000991
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.073513260966497546
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.064215890358670175
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.081150292572237354
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.056625463834034821
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.029441084210472979
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.054126945907282176
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.11431498025591309
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.013469607364595087
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.047589065846276493
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.044407675281551692
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.030643157508495531
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.050937427163066901
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.041680222429215166
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.014520517636249401
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.031863703941723699
+        }
+      ],
+      "80+": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.0036860076140263895
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0023034910998175036
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.0029651362939143405
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.0048046431506567214
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.0082659578329965337
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.0089166681191036844
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.0026571826414941014
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.002036834764881161
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.0033942620485756365
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.06898578117817028
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.035921616803301207
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.053970320772472984
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.078455578018681263
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.1016139924192779
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.097993094688865232
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.049134649126556185
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.029605514035592737
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.041050033143317566
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.064594388738088301
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.023048066192050954
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.048867770763031219
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.060039749778221192
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.051779509181381703
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.064889298210926941
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.043290190588230332
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.022867001878028818
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.024863260918339108
+        }
+      ]
+    },
+    "female": {
+      "60-69": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.006325229918247079
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0022270244783067971
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.0052173698264718878
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.016612948396613206
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.02523339448107341
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.022902161394225976
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.014617459398305714
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.013056734883184816
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.013860306883505256
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.054023355326394198
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0066028451014962311
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.022228582249329876
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.036952341223992442
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.028181253976922772
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.031387661643247175
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.047872773494996509
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.016724841311878437
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.031975942369790532
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.14413965103576745
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.018493643261810473
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.051054664563675786
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.085470491935463841
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.051394303079773426
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.077526800653270625
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.090459096814292914
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.026944668678961819
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.058514453619001358
+        }
+      ],
+      "70-79": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.0033531371322962629
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0019585874137844563
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.0024424423063883738
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.016243769311914388
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.013914341951940228
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.018598990204172466
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.0095302357897329784
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.0043752803171143795
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.0079411423807615646
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.053849636151226357
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0063949646435542346
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.01824372787457168
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.057375671588891959
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.042174058065543772
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.053144583515982356
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.0509799346838921
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.016842801482980275
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.034483724137708865
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.10031287841500355
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.014790858692725974
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.047024036460978212
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.10133325643080308
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.07367594837401345
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.088494056863463663
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.082550468002571584
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.029088021675569481
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.050883446132414287
+        }
+      ],
+      "80+": [
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.0016420590970992902
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0011010572602660293
+        },
+        {
+          "smoking": "current",
+          "education": "college",
+          "health": "good",
+          "weight": 0.00025591067198511781
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.0055851388325709964
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.0048076924880147125
+        },
+        {
+          "smoking": "current",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.0091307937577899817
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.0032334836628809915
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.0020265814786310839
+        },
+        {
+          "smoking": "current",
+          "education": "some",
+          "health": "good",
+          "weight": 0.0010651254965606588
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.026596106384575567
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.0092757960526594629
+        },
+        {
+          "smoking": "former",
+          "education": "college",
+          "health": "good",
+          "weight": 0.018710284477174273
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.054316111829100427
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.057155171246547523
+        },
+        {
+          "smoking": "former",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.053636371376456979
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.040677457022816332
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.016646946079512642
+        },
+        {
+          "smoking": "former",
+          "education": "some",
+          "health": "good",
+          "weight": 0.022176536955875233
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "excellent",
+          "weight": 0.056569798557455961
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "fair",
+          "weight": 0.021316124994078572
+        },
+        {
+          "smoking": "never",
+          "education": "college",
+          "health": "good",
+          "weight": 0.033035918598727225
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "excellent",
+          "weight": 0.13857212196980928
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "fair",
+          "weight": 0.13436454244555859
+        },
+        {
+          "smoking": "never",
+          "education": "high_school",
+          "health": "good",
+          "weight": 0.14849052648547931
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "excellent",
+          "weight": 0.062869596915749434
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "fair",
+          "weight": 0.026589355113733223
+        },
+        {
+          "smoking": "never",
+          "education": "some",
+          "health": "good",
+          "weight": 0.050153390748891094
+        }
+      ]
+    }
+  },
+  "lambdaBySexAndAge": {
+    "male": {
+      "60": 0.0060012014435669369,
+      "61": 0.0064786973418967725,
+      "62": 0.0069936224503912778,
+      "63": 0.0075461156259426431,
+      "64": 0.0081282868511068293,
+      "65": 0.0087391864993363946,
+      "66": 0.0093402368260519543,
+      "67": 0.0099647684616466677,
+      "68": 0.010636070889031131,
+      "69": 0.011383537636317907,
+      "70": 0.012255944843051057,
+      "71": 0.013186098341684155,
+      "72": 0.014214725745945634,
+      "73": 0.015385155075306018,
+      "74": 0.016711680468697112,
+      "75": 0.018211670876023982,
+      "76": 0.019980248361803607,
+      "77": 0.022277694319448104,
+      "78": 0.024673786474484483,
+      "79": 0.027409913575075294,
+      "80": 0.030059930642035968,
+      "81": 0.033493599359589586,
+      "82": 0.037223849062407138,
+      "83": 0.041248581435628547,
+      "84": 0.045818645692576827,
+      "85": 0.051236643446626443,
+      "86": 0.057586232627087813,
+      "87": 0.064785481281175589,
+      "88": 0.073001232834771321,
+      "89": 0.082162858597893684,
+      "90": 0.092055449705797057,
+      "91": 0.103107038256569,
+      "92": 0.11557762532880286,
+      "93": 0.12985226652608628,
+      "94": 0.14570739277669983,
+      "95": 0.16282002400086359,
+      "96": 0.18099649281150007,
+      "97": 0.20039428896741204,
+      "98": 0.21787293331295046,
+      "99": 0.2319862431821644,
+      "100": 0.247245633982485,
+      "101": 0.26378146737192448,
+      "102": 0.28174479866372742,
+      "103": 0.3013149779145104,
+      "104": 0.32270218821042529,
+      "105": 0.3461876282986629,
+      "106": 0.37208336217616589,
+      "107": 0.40077310960232582,
+      "108": 0.43273219986023825,
+      "109": 0.46856153285039354,
+      "110": 0.50903284483618838,
+      "111": 0.55515707648860424,
+      "112": 0.60829671180470368,
+      "113": 0.670345806433293,
+      "114": 0.7440389046700896,
+      "115": 0.83353026539467789,
+      "116": 0.94555272499094278,
+      "117": 1.0920763175753239,
+      "118": 1.2975297121501443,
+      "119": 1.6251133279411547
+    },
+    "female": {
+      "60": 0.0038607878303390281,
+      "61": 0.0042149476728329111,
+      "62": 0.004587910578536419,
+      "63": 0.0049589461222418856,
+      "64": 0.0053145603334266095,
+      "65": 0.0056935265409461212,
+      "66": 0.0060829558088811393,
+      "67": 0.0065217607208675433,
+      "68": 0.0070202454537934321,
+      "69": 0.0076062965393480057,
+      "70": 0.0084194156171191227,
+      "71": 0.0092161711706398534,
+      "72": 0.010111247423957489,
+      "73": 0.011145697995188124,
+      "74": 0.012326236612519213,
+      "75": 0.013669658625578514,
+      "76": 0.015191350897604674,
+      "77": 0.017086904181701664,
+      "78": 0.019103620778958538,
+      "79": 0.021372465230990564,
+      "80": 0.023830337567153886,
+      "81": 0.026669697353913075,
+      "82": 0.029853505436038767,
+      "83": 0.033454778563985287,
+      "84": 0.03760922207961423,
+      "85": 0.042290535181341238,
+      "86": 0.047695480214258422,
+      "87": 0.054001488071215901,
+      "88": 0.06138527841678007,
+      "89": 0.069746795943100071,
+      "90": 0.07892684475093277,
+      "91": 0.088988740790515913,
+      "92": 0.09999308330361055,
+      "93": 0.11205859690171151,
+      "94": 0.12556513120292792,
+      "95": 0.14053977976928173,
+      "96": 0.15716571875433291,
+      "97": 0.17490706200840797,
+      "98": 0.19321901927305574,
+      "99": 0.2122414126942993,
+      "100": 0.23251110361741908,
+      "101": 0.25402099493702085,
+      "102": 0.27674343821590497,
+      "103": 0.30062653088673519,
+      "104": 0.32558746785110276,
+      "105": 0.35336672885711307,
+      "106": 0.384444732089052,
+      "107": 0.41942957680762194,
+      "108": 0.45909567168687926,
+      "109": 0.5036350301686443,
+      "110": 0.54686908901963383,
+      "111": 0.59608972227746171,
+      "112": 0.65272827029895775,
+      "113": 0.71877123399216503,
+      "114": 0.79708145854296486,
+      "115": 0.8919996373680722,
+      "116": 1.0105454316309022,
+      "117": 1.1651682258628597,
+      "118": 1.3812017522884359,
+      "119": 1.7239486732766263
+    }
+  },
+  "validation": {
+    "modelVersion": "nhis-lmf-2019-v1",
+    "interviewYears": [
+      2010,
+      2011,
+      2012,
+      2013
+    ],
+    "horizons": {
+      "4": {
+        "n": 36691,
+        "deaths": 784,
+        "observedMortality": 0.020247824151132847,
+        "predictedMortality": 0.02470450990551027,
+        "error": -0.0044566857543774235,
+        "brier": 0.019192484548352023,
+        "calibrationInTheLarge": -0.18323724232334501,
+        "calibrationSlope": 1.2617602788723574,
+        "observedQuarters": 4,
+        "subgroups": [
+          {
+            "variable": "sex",
+            "level": "female",
+            "n": 21506,
+            "deaths": 409,
+            "observedMortality": 0.017781316779679566,
+            "predictedMortality": 0.022411953497587407,
+            "error": -0.0046306367179078413,
+            "gated": true
+          },
+          {
+            "variable": "sex",
+            "level": "male",
+            "n": 15185,
+            "deaths": 375,
+            "observedMortality": 0.02322954309025688,
+            "predictedMortality": 0.027475942474343876,
+            "error": -0.0042463993840869962,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "60-69",
+            "n": 18346,
+            "deaths": 182,
+            "observedMortality": 0.009343081763804037,
+            "predictedMortality": 0.01100518592748107,
+            "error": -0.0016621041636770331,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "70-79",
+            "n": 11039,
+            "deaths": 212,
+            "observedMortality": 0.018455987909401252,
+            "predictedMortality": 0.026173265679486128,
+            "error": -0.0077172777700848759,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "80+",
+            "n": 7306,
+            "deaths": 390,
+            "observedMortality": 0.05621325834456245,
+            "predictedMortality": 0.063755827226978215,
+            "error": -0.007542568882415765,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "current",
+            "n": 4338,
+            "deaths": 115,
+            "observedMortality": 0.025544791120424907,
+            "predictedMortality": 0.032107146112281645,
+            "error": -0.0065623549918567385,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "former",
+            "n": 13395,
+            "deaths": 346,
+            "observedMortality": 0.025217727923052734,
+            "predictedMortality": 0.028547947917465569,
+            "error": -0.0033302199944128356,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "never",
+            "n": 18958,
+            "deaths": 323,
+            "observedMortality": 0.015355692145457046,
+            "predictedMortality": 0.020198254510607628,
+            "error": -0.0048425623651505816,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "college",
+            "n": 8778,
+            "deaths": 114,
+            "observedMortality": 0.011298834094941691,
+            "predictedMortality": 0.017169965176226817,
+            "error": -0.0058711310812851261,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "high_school",
+            "n": 18466,
+            "deaths": 502,
+            "observedMortality": 0.027359881185062333,
+            "predictedMortality": 0.030535881900315965,
+            "error": -0.0031760007152536324,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "some",
+            "n": 9447,
+            "deaths": 168,
+            "observedMortality": 0.016497355839046397,
+            "predictedMortality": 0.021831516564921088,
+            "error": -0.0053341607258746912,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "excellent",
+            "n": 16110,
+            "deaths": 136,
+            "observedMortality": 0.0068971526144727931,
+            "predictedMortality": 0.016043879315263191,
+            "error": -0.0091467267007903988,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "fair",
+            "n": 8749,
+            "deaths": 423,
+            "observedMortality": 0.050371359314720393,
+            "predictedMortality": 0.04207542818224045,
+            "error": 0.0082959311324799431,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "good",
+            "n": 11832,
+            "deaths": 225,
+            "observedMortality": 0.019111609393201466,
+            "predictedMortality": 0.025447246817423223,
+            "error": -0.0063356374242217565,
+            "gated": true
+          }
+        ]
+      },
+      "12": {
+        "n": 36691,
+        "deaths": 3071,
+        "observedMortality": 0.079061050423743395,
+        "predictedMortality": 0.078617257925031173,
+        "error": 0.0004437924987122227,
+        "brier": 0.065166870276175584,
+        "calibrationInTheLarge": 0.085046440852006924,
+        "calibrationSlope": 1.273859322437642,
+        "observedQuarters": 12,
+        "subgroups": [
+          {
+            "variable": "sex",
+            "level": "female",
+            "n": 21506,
+            "deaths": 1638,
+            "observedMortality": 0.07064688978381943,
+            "predictedMortality": 0.072021465135920656,
+            "error": -0.0013745753521012261,
+            "gated": true
+          },
+          {
+            "variable": "sex",
+            "level": "male",
+            "n": 15185,
+            "deaths": 1433,
+            "observedMortality": 0.089232786550406951,
+            "predictedMortality": 0.086590799989185174,
+            "error": 0.0026419865612217763,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "60-69",
+            "n": 18346,
+            "deaths": 677,
+            "observedMortality": 0.034209262802489329,
+            "predictedMortality": 0.035192960541756739,
+            "error": -0.00098369773926740983,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "70-79",
+            "n": 11039,
+            "deaths": 871,
+            "observedMortality": 0.076753842571875799,
+            "predictedMortality": 0.083491597732488862,
+            "error": -0.0067377551606130626,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "80+",
+            "n": 7306,
+            "deaths": 1523,
+            "observedMortality": 0.21864430892794459,
+            "predictedMortality": 0.20204223876952682,
+            "error": 0.016602070158417775,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "current",
+            "n": 4338,
+            "deaths": 440,
+            "observedMortality": 0.094451640891423327,
+            "predictedMortality": 0.099264362181563301,
+            "error": -0.0048127212901399735,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "former",
+            "n": 13395,
+            "deaths": 1317,
+            "observedMortality": 0.09470622264369484,
+            "predictedMortality": 0.090336490099910433,
+            "error": 0.0043697325437844076,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "never",
+            "n": 18958,
+            "deaths": 1314,
+            "observedMortality": 0.063941504459022178,
+            "predictedMortality": 0.065297849846871509,
+            "error": -0.0013563453878493309,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "college",
+            "n": 8778,
+            "deaths": 491,
+            "observedMortality": 0.051799049276896457,
+            "predictedMortality": 0.055238423790865403,
+            "error": -0.0034393745139689458,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "high_school",
+            "n": 18466,
+            "deaths": 1925,
+            "observedMortality": 0.10117728717247271,
+            "predictedMortality": 0.096712190226724518,
+            "error": 0.0044650969457481898,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "some",
+            "n": 9447,
+            "deaths": 655,
+            "observedMortality": 0.066817112147614419,
+            "predictedMortality": 0.069701142852687678,
+            "error": -0.0028840307050732594,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "excellent",
+            "n": 16110,
+            "deaths": 721,
+            "observedMortality": 0.038777162861080607,
+            "predictedMortality": 0.052085907805889432,
+            "error": -0.013308744944808826,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "fair",
+            "n": 8749,
+            "deaths": 1393,
+            "observedMortality": 0.16655466167721009,
+            "predictedMortality": 0.13086383927599485,
+            "error": 0.035690822401215239,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "good",
+            "n": 11832,
+            "deaths": 957,
+            "observedMortality": 0.077951024795009954,
+            "predictedMortality": 0.081552768618836632,
+            "error": -0.003601743823826678,
+            "gated": true
+          }
+        ]
+      },
+      "20": {
+        "n": 36691,
+        "deaths": 5588,
+        "observedMortality": 0.1423620315691555,
+        "predictedMortality": 0.13716569613023999,
+        "error": 0.0051963354389155114,
+        "brier": 0.10229337148935333,
+        "calibrationInTheLarge": 0.18262487196638674,
+        "calibrationSlope": 1.2896320125424472,
+        "observedQuarters": 20,
+        "subgroups": [
+          {
+            "variable": "sex",
+            "level": "female",
+            "n": 21506,
+            "deaths": 3031,
+            "observedMortality": 0.13070225320952905,
+            "predictedMortality": 0.12675888604906624,
+            "error": 0.0039433671604628129,
+            "gated": true
+          },
+          {
+            "variable": "sex",
+            "level": "male",
+            "n": 15185,
+            "deaths": 2557,
+            "observedMortality": 0.15645733992430644,
+            "predictedMortality": 0.14974631237896405,
+            "error": 0.0067110275453423907,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "60-69",
+            "n": 18346,
+            "deaths": 1274,
+            "observedMortality": 0.064392745764122225,
+            "predictedMortality": 0.063014979910744062,
+            "error": 0.0013777658533781628,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "70-79",
+            "n": 11039,
+            "deaths": 1649,
+            "observedMortality": 0.14381058061962668,
+            "predictedMortality": 0.14729927307748453,
+            "error": -0.0034886924578578504,
+            "gated": true
+          },
+          {
+            "variable": "age_band",
+            "level": "80+",
+            "n": 7306,
+            "deaths": 2665,
+            "observedMortality": 0.37601202819990631,
+            "predictedMortality": 0.34494079067806827,
+            "error": 0.031071237521838047,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "current",
+            "n": 4338,
+            "deaths": 806,
+            "observedMortality": 0.17449666512957634,
+            "predictedMortality": 0.1700248585474623,
+            "error": 0.0044718065821140462,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "former",
+            "n": 13395,
+            "deaths": 2358,
+            "observedMortality": 0.16511776696586988,
+            "predictedMortality": 0.15656348101996245,
+            "error": 0.0085542859459074305,
+            "gated": true
+          },
+          {
+            "variable": "smoking",
+            "level": "never",
+            "n": 18958,
+            "deaths": 2424,
+            "observedMortality": 0.11823901769378121,
+            "predictedMortality": 0.11540707328656674,
+            "error": 0.0028319444072144734,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "college",
+            "n": 8778,
+            "deaths": 892,
+            "observedMortality": 0.093534215369058135,
+            "predictedMortality": 0.09773065328993405,
+            "error": -0.0041964379208759145,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "high_school",
+            "n": 18466,
+            "deaths": 3473,
+            "observedMortality": 0.18019387950987234,
+            "predictedMortality": 0.16757192211338803,
+            "error": 0.012621957396484307,
+            "gated": true
+          },
+          {
+            "variable": "education",
+            "level": "some",
+            "n": 9447,
+            "deaths": 1223,
+            "observedMortality": 0.12366809003765168,
+            "predictedMortality": 0.12233707461485049,
+            "error": 0.0013310154228011878,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "excellent",
+            "n": 16110,
+            "deaths": 1466,
+            "observedMortality": 0.080150754040717809,
+            "predictedMortality": 0.093180592933306952,
+            "error": -0.013029838892589143,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "fair",
+            "n": 8749,
+            "deaths": 2337,
+            "observedMortality": 0.27457284443108637,
+            "predictedMortality": 0.22200514566469617,
+            "error": 0.052567698766390197,
+            "gated": true
+          },
+          {
+            "variable": "health",
+            "level": "good",
+            "n": 11832,
+            "deaths": 1785,
+            "observedMortality": 0.14263019738430713,
+            "predictedMortality": 0.14324447325901973,
+            "error": -0.00061427587471260536,
+            "gated": true
+          }
+        ]
+      }
+    },
+    "gates": {
+      "overallErrorMax": 0.02,
+      "subgroupErrorMax": 0.029999999999999999,
+      "subgroupDeathsMin": 100,
+      "calibrationSlopeMin": 0.80000000000000004,
+      "calibrationSlopeMax": 1.2,
+      "passed": false
+    }
+  }
+}

@@ -2,7 +2,8 @@
 Earnings record persistence.
 Handles: read, upsert, delete of a user's (and partner's) SSA earnings history.
 """
-from typing import List, Literal
+from datetime import date
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -24,6 +25,7 @@ class EarningsRow(BaseModel):
 class EarningsRecordIn(BaseModel):
     birth_year: int = Field(..., ge=1937, le=2010)
     rows: List[EarningsRow]
+    statement_date: Optional[date] = None
 
 
 class EarningsRecordOut(BaseModel):
@@ -31,6 +33,7 @@ class EarningsRecordOut(BaseModel):
     birth_year: int
     rows: List[EarningsRow]
     updated_at: str
+    statement_date: Optional[date] = None
 
 
 Person = Literal["self", "partner"]
@@ -62,6 +65,7 @@ async def get_earnings(request: Request):
             birth_year=row["birth_year"],
             rows=row["rows"],
             updated_at=str(row.get("updated_at") or ""),
+            statement_date=row.get("statement_date"),
         )
         for row in (response.data or [])
     ]
@@ -76,6 +80,7 @@ async def upsert_earnings(person: Person, payload: EarningsRecordIn, request: Re
         "person": person,
         "birth_year": payload.birth_year,
         "rows": [row.model_dump() for row in payload.rows],
+        "statement_date": payload.statement_date.isoformat() if payload.statement_date else None,
     }
     response = (
         supabase.table("earnings_records")
@@ -91,6 +96,7 @@ async def upsert_earnings(person: Person, payload: EarningsRecordIn, request: Re
         birth_year=saved["birth_year"],
         rows=saved["rows"],
         updated_at=str(saved.get("updated_at") or ""),
+        statement_date=saved.get("statement_date"),
     )
 
 

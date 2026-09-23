@@ -26,11 +26,21 @@ A single year's earnings exists in six forms. Only one is the source of truth; t
 - #5 must be excluded from any count of years worked. This has already caused one shipped bug (`PIACalculator.jsx:467`, `:554` counted projected rows as earnings years, overstating a 21-year record as 25).
 - #6 is in different units from #2. **Never compare an indexed value against a nominal cap.**
 
-### 🔴 Known defect — unit mismatch
+### ✅ Fixed 2026-08-30 — unit mismatch (cap-then-index)
 
-`backend/core/ssa_xml_processor.py:248-256` caps **indexed** earnings against that year's **nominal** taxable maximum. A 1991 value indexed to 2024 dollars is compared against the 1991 ceiling. Observed in `backend/test_profile_pia2250_5zeros.xml`: 1991 nominal $24,024 indexes to $76,927, is capped to $53,400 — a person who earned less than half the cap is flagged `is_capped: True`.
+`calculate_indexed_earnings()` used to cap **indexed** earnings against that year's **nominal** taxable maximum. A 1991 value indexed to 2024 dollars was compared against the 1991 ceiling. Observed in `backend/test_profile_pia2250_5zeros.xml`: 1991 nominal $24,024 indexes to $76,927, was capped to $53,400 — a person who earned less than half the cap was flagged `is_capped: True`.
 
-Effect: systematically **understates PIA**, worst for the longest careers (largest indexing factors). Correct order is cap-then-index. Must be fixed before Plan A makes earnings authoritative for the chart.
+Correct order is cap-then-index. Stored `earnings_records.rows` are nominal and did not need recomputation; any previously displayed PIA was computed live and corrects on the next calculate.
+
+**Fixture deltas (buggy → fixed), same birth year / bend points:**
+
+- `test_profile_pia2250_5zeros.xml` (born 1964, mid earner, 5 planted zeros): PIA $2,250.00 → $2,371.71 (+$121.71); AIME $4,700.36 → $5,080.70
+- `sample_ssa_statement.xml` (born 1960, long high-earning career): PIA $2,847.77 → $3,284.53 (+$436.76); AIME $8,030.71 → $10,942.47
+- `ssa_projection_pia2500_test.xml` / `_like.xml`: PIA $2,901.06 → $3,277.34 (+$376.28)
+- `sample_ssdi_earnings.xml` (born 1963): PIA $3,057.88 → $3,192.58 (+$134.70)
+- Synthetic max-taxable career, born 1966 (39 years at each year's ceiling): PIA $4,215.56 after the fix (AWI for 2026 unpublished; `awi_approximated: true`)
+
+The understatement was worst for the longest / highest careers (largest indexing factors). Regression coverage: `backend/tests/test_indexed_earnings_cap.py`.
 
 ---
 
@@ -194,6 +204,16 @@ Each step is applied **exactly once**. The work-stop ladder deliberately returns
 `scenario.assumptions` freezes `bendPointsYear` and `colaRate` at creation so a saved plan keeps reporting the tables it was computed under.
 
 ⚠️ `areScenariosComparable()` compares the **live** `inflation` field, not the frozen `colaRate`. They diverge as soon as the COLA slider moves (observed: `inflation 0.04` alongside `colaRate 0.025`). Nothing calls it yet. **Settle before the scenario-comparison chart**, or two scenarios computed under different assumptions will compare as if they matched.
+
+---
+
+## 9. Mortality and longevity horizons
+
+SSA 2023 period life table `qx` is the only absolute mortality baseline. Smoking, education, and self-rated health personalization is fitted offline from NHIS Person + Sample Adult files joined to the 2019 public-use Linked Mortality Files; that model is not shipped until temporal-validation gates pass. Runtime then fails closed to a labeled SSA population estimate.
+
+Authoritative lineage, checksums, cohorts, calibration, and fallbacks: [`docs/MORTALITY-DATA-LINEAGE.md`](MORTALITY-DATA-LINEAGE.md).
+
+Our Lifelong Timeline and its preferred/62/70 projections use `longevitySummary.axisEndYear` so every displayed year has financial data. Other calculator views still default to `birthYear + 95` unless they receive an explicit `endYear`.
 
 ---
 

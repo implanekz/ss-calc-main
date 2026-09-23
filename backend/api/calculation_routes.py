@@ -625,7 +625,8 @@ async def calculate_pia_from_earnings(request: ManualPIACalculationRequest):
             years_of_zero_in_top_35=calculation['years_of_zero_in_top_35'],
             lowest_year_in_top_35=calculation['lowest_year_in_top_35'],
             highest_year_in_top_35=calculation['highest_year_in_top_35'],
-            calculation_details=calculation['calculation_details']
+            calculation_details=calculation['calculation_details'],
+            awi_approximated=bool(calculation.get('awi_approximated')),
         )
 
     except Exception as e:

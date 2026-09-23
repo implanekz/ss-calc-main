@@ -5,8 +5,10 @@ import { useUser } from '../contexts/UserContext';
 import { useCalculatorPersistence } from '../hooks/useCalculatorPersistence';
 import { Tabs, TabList, Tab } from './ui/Tabs';
 import { API_BASE_URL } from '../config/api';
-import { saveEarnings } from '../services/earningsService';
+import { saveEarnings, stashDevEarnings } from '../services/earningsService';
 import { getAuthToken } from '../config/supabase';
+import { countZerosInTop35 } from '../utils/top35Zeros';
+import { readWorkshopPia, stashWorkshopPia, projectedThroughYear } from '../utils/workshopPia';
 
 const PIACalculator = () => {
     // Get user context for names and marital status
@@ -50,6 +52,9 @@ const PIACalculator = () => {
     const [primaryWhatIfEarnings, setPrimaryWhatIfEarnings] = useState([]);
     const [, setPrimaryUploadedFileName] = useState(null);
     const [, setPrimaryUploadedFileHash] = useState(null);
+    const [primaryAdoptChartPia, setPrimaryAdoptChartPia] = useState(
+        () => Boolean(readWorkshopPia().spouse1?.enabled)
+    );
 
     // SPOUSE State management - use partner DOB if available
     const getInitialSpouseBirthYear = () => {
@@ -78,6 +83,10 @@ const PIACalculator = () => {
     const [spouseWhatIfEarnings, setSpouseWhatIfEarnings] = useState([]);
     const [, setSpouseUploadedFileName] = useState(null);
     const [, setSpouseUploadedFileHash] = useState(null);
+    const [spouseAdoptChartPia, setSpouseAdoptChartPia] = useState(
+        () => Boolean(readWorkshopPia().spouse2?.enabled)
+    );
+    const [showAdoptTip, setShowAdoptTip] = useState(false);
 
     // Helper: Get person-specific state based on active tab
     const isPrimary = activeTab === 'primary';
@@ -112,6 +121,8 @@ const PIACalculator = () => {
     const setWhatIfEarnings = isPrimary ? setPrimaryWhatIfEarnings : setSpouseWhatIfEarnings;
     const setUploadedFileName = isPrimary ? setPrimaryUploadedFileName : setSpouseUploadedFileName;
     const setUploadedFileHash = isPrimary ? setPrimaryUploadedFileHash : setSpouseUploadedFileHash;
+    const adoptChartPia = isPrimary ? primaryAdoptChartPia : spouseAdoptChartPia;
+    const setAdoptChartPia = isPrimary ? setPrimaryAdoptChartPia : setSpouseAdoptChartPia;
 
     // Get tab labels from user context
     const pFirst = profile?.firstName || profile?.first_name;
@@ -228,6 +239,13 @@ const PIACalculator = () => {
             console.log('PIA calculation result:', result);
             setCalculatedResult(result);
             setUseCalculatedPIA(true); // Auto-switch to calculated PIA
+            if (adoptChartPia) {
+                stashWorkshopPia(isPrimary ? 'spouse1' : 'spouse2', {
+                    pia: result.pia,
+                    throughYear: projectedThroughYear(sourceEarnings),
+                    enabled: true
+                });
+            }
         } catch (err) {
             setError(err.message);
             console.error('PIA calculation error:', err);
@@ -411,12 +429,22 @@ const PIACalculator = () => {
             // `birthYear` closure variable won't reflect this update until the next
             // render. Anything persisted later in this function must use this value.
             let resolvedBirthYear = birthYear;
+            const profileBirthYear = profile?.date_of_birth
+                ? new Date(profile.date_of_birth).getFullYear()
+                : null;
             if (result.person_info?.birth_date) {
                 const birthDate = new Date(result.person_info.birth_date);
                 const year = birthDate.getFullYear();
                 if (year >= 1937 && year <= 2010) {
-                    setBirthYear(year);
-                    resolvedBirthYear = year;
+                    if (profileBirthYear && profileBirthYear !== year) {
+                        setError(
+                            `This file says birth year ${year}, but the profile uses ${profileBirthYear}. We are keeping the profile date of birth for the PIA.`
+                        );
+                        resolvedBirthYear = profileBirthYear;
+                    } else {
+                        setBirthYear(year);
+                        resolvedBirthYear = year;
+                    }
                 }
             }
             // If no birth date in XML, try to infer from earnings years
@@ -452,16 +480,19 @@ const PIACalculator = () => {
                 // Persist so the record survives reload and is visible to Show Me The Money.
                 // A failure here must not block the upload the user just completed.
                 try {
+                    const recordToSave = {
+                        birthYear: resolvedBirthYear,
+                        statementDate: result.person_info?.statement_date || null,
+                        rows: mappedEarnings.map((row) => ({
+                            year: row.year,
+                            earnings: row.earnings,
+                            isProjected: row.is_projected
+                        }))
+                    };
+                    stashDevEarnings(isPrimary ? 'spouse1' : 'spouse2', recordToSave);
                     const token = await getAuthToken();
                     if (token) {
-                        await saveEarnings(token, isPrimary ? 'spouse1' : 'spouse2', {
-                            birthYear: resolvedBirthYear,
-                            rows: mappedEarnings.map((row) => ({
-                                year: row.year,
-                                earnings: row.earnings,
-                                isProjected: row.is_projected
-                            }))
-                        });
+                        await saveEarnings(token, isPrimary ? 'spouse1' : 'spouse2', recordToSave);
                     }
                 } catch (persistError) {
                     console.error('Could not save earnings record:', persistError);
@@ -484,10 +515,13 @@ const PIACalculator = () => {
             // assumptions, not banked earnings, and must not be counted as either
             // earnings years or zero years in the actual record)
             const actualEarnings = result.spreadsheet_data.filter(e => !e.is_projected);
-            const sortedEarnings = [...actualEarnings]
-                .sort((a, b) => (b.earnings || 0) - (a.earnings || 0))
-                .slice(0, 35);
-            const zeroCount = sortedEarnings.filter(e => (e.earnings || 0) === 0).length;
+            const zeroCount = countZerosInTop35(
+                actualEarnings.map((row) => ({
+                    year: row.year,
+                    earnings: row.earnings,
+                    isProjected: Boolean(row.is_projected)
+                }))
+            );
 
             setXmlUploadSuccess(
                 `✅ Loaded ${file.name} • ${result.earnings_summary?.total_years || 0} years • ${zeroCount} zeros in top-35`
@@ -563,6 +597,16 @@ const PIACalculator = () => {
             currency: 'USD',
             maximumFractionDigits: 0
         }).format(value);
+    };
+
+    const handleAdoptChartPia = (checked) => {
+        setAdoptChartPia(checked);
+        if (!calculatedResult) return;
+        stashWorkshopPia(isPrimary ? 'spouse1' : 'spouse2', {
+            pia: calculatedResult.pia,
+            throughYear: projectedThroughYear(earningsHistory),
+            enabled: checked
+        });
     };
 
     // Count non-zero years (exclude projected/future years — those are
@@ -846,6 +890,13 @@ const PIACalculator = () => {
                                 ? `Based on ${calculatedResult.top_35_years.length} years`
                                 : 'Calculate below'}
                         </div>
+                        {calculatedResult && earningsHistory.some((row) => row.is_projected) && (
+                            <div className="text-xs text-emerald-800 mt-2">
+                                Includes assumed earnings through {Math.max(
+                                    ...earningsHistory.filter((row) => row.is_projected).map((row) => row.year)
+                                )}.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -863,6 +914,52 @@ const PIACalculator = () => {
                         <div className="mt-1 text-xs text-gray-600">
                             Lifetime impact (25 years): {formatCurrency((calculatedResult.pia - ssaPIA) * 12 * 25)}
                         </div>
+                    </div>
+                )}
+
+                {calculatedResult && (
+                    <div className="mt-4 p-4 bg-white border-2 border-emerald-400 rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <input
+                                id="adopt-workshop-pia"
+                                type="checkbox"
+                                checked={adoptChartPia}
+                                onChange={(e) => handleAdoptChartPia(e.target.checked)}
+                                className="mt-1 h-5 w-5 text-emerald-600 border-gray-400 rounded focus:ring-emerald-500"
+                            />
+                            <div className="flex-1">
+                                <label htmlFor="adopt-workshop-pia" className="block font-bold text-gray-900 cursor-pointer">
+                                    Use this PIA on Show Me The Money
+                                </label>
+                                <p className="text-sm text-gray-700 mt-1">
+                                    {formatCurrency(calculatedResult.pia)}/month
+                                    {projectedThroughYear(earningsHistory) != null
+                                        ? ` · assumes earnings through ${projectedThroughYear(earningsHistory)}`
+                                        : ''}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdoptTip((open) => !open)}
+                                aria-expanded={showAdoptTip}
+                                aria-controls="adopt-workshop-pia-tip"
+                                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold"
+                                title="Why this matters"
+                            >
+                                i
+                            </button>
+                        </div>
+                        {showAdoptTip && (
+                            <div
+                                id="adopt-workshop-pia-tip"
+                                className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-gray-800 space-y-3"
+                            >
+                                <p className="font-semibold text-gray-900">{tooltips.pia.adoptChartPia.title}</p>
+                                {tooltips.pia.adoptChartPia.paragraphs.map((paragraph) => (
+                                    <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -904,7 +1001,7 @@ const PIACalculator = () => {
                         <span className="font-semibold text-blue-700">{nonZeroYears}</span> years with earnings
                     </div>
                     <div className="px-3 py-2 bg-amber-50 rounded-md">
-                        <span className="font-semibold text-amber-700">{Math.max(0, 35 - nonZeroYears)}</span> zero years in top 35
+                        <span className="font-semibold text-amber-700">{countZerosInTop35(earningsHistory)}</span> zero years in top 35
                     </div>
                 </div>
 

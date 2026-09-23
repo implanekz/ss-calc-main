@@ -16,13 +16,24 @@ export const ageInMonths = (birthDate, targetDate) => {
   return totalMonths;
 };
 
+// A shared household axis can end before a later-born spouse's birthYear+62.
+// Lift that person's end to their own start so callers still get real years.
+// calculateProjection itself still rejects a truly invalid explicit endYear.
+export const resolveProjectionEndYear = (dob, endYear) => {
+  if (!Number.isInteger(endYear) || !dob) {
+    return endYear;
+  }
+  return Math.max(endYear, new Date(dob).getFullYear() + 62);
+};
+
 export const calculateProjection = ({
   pia,
   dob,
   filingYear,
   filingMonth = 0,
   inflationRate,
-  asOfDate = new Date()
+  asOfDate = new Date(),
+  endYear
 }) => {
   const birthDate = new Date(dob);
   const numericPia = Number(pia) || 0;
@@ -47,7 +58,13 @@ export const calculateProjection = ({
   let runningTotal = 0;
 
   const startYear = birthYear + 62;
-  const endYear = birthYear + 95;
+  const defaultEndYear = birthYear + 95;
+  const projectionEndYear = Number.isInteger(endYear) && endYear >= startYear
+    ? endYear
+    : defaultEndYear;
+  if (Number.isInteger(endYear) && endYear < startYear) {
+    throw new Error('endYear must be on or after the projection start year');
+  }
   // filingMonth counts months past the filer's filingYear-th birthday, so it can carry the
   // actual claim into the calendar year AFTER birthYear+filingYear (e.g. a birth month of
   // September plus a filingMonth of 6 claims in March of the following year) -- both the
@@ -58,7 +75,7 @@ export const calculateProjection = ({
   const claimingCalendarYear = birthYear + Number(filingYear) + Math.floor(claimMonthOffset / 12);
   const claimingMonthIndex = claimMonthOffset % 12;
 
-  for (let year = startYear; year <= endYear; year += 1) {
+  for (let year = startYear; year <= projectionEndYear; year += 1) {
     let monthlyBenefit = 0;
     let monthsInYear = 12;
 

@@ -1,4 +1,4 @@
-import { fetchEarnings, saveEarnings, fetchWorkStopLadder } from './earningsService';
+import { fetchEarnings, saveEarnings, fetchWorkStopLadder, calculatePiaFromEarnings } from './earningsService';
 import { ApiError } from './apiClient';
 
 beforeEach(() => { global.fetch = jest.fn(); });
@@ -29,6 +29,7 @@ describe('fetchEarnings', () => {
     const result = await fetchEarnings('tok');
     expect(result.spouse1.birthYear).toBe(1965);
     expect(result.spouse1.rows[0]).toEqual({ year: 2020, earnings: 90000, isProjected: false });
+    expect(result.spouse1.statementDate).toBeNull();
     expect(result.spouse2.birthYear).toBe(1968);
   });
 
@@ -72,7 +73,8 @@ describe('saveEarnings', () => {
     expect(options.method).toBe('PUT');
     expect(JSON.parse(options.body)).toEqual({
       birth_year: 1965,
-      rows: [{ year: 2020, earnings: 90000, is_projected: false }]
+      rows: [{ year: 2020, earnings: 90000, is_projected: false }],
+      statement_date: null
     });
   });
 
@@ -99,13 +101,43 @@ describe('saveEarnings', () => {
     }));
     await saveEarnings('tok', 'spouse1', { birthYear: 1965 });
     const [, options] = global.fetch.mock.calls[0];
-    expect(JSON.parse(options.body)).toEqual({ birth_year: 1965, rows: [] });
+    expect(JSON.parse(options.body)).toEqual({ birth_year: 1965, rows: [], statement_date: null });
   });
 
   it('rejects unknown person keys without calling fetch', async () => {
     await expect(saveEarnings('tok', 'cousin', { birthYear: 1965, rows: [] }))
       .rejects.toThrow('Unknown person: cousin');
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('calculatePiaFromEarnings', () => {
+  it('posts only banked rows and returns the derived PIA', async () => {
+    global.fetch.mockReturnValue(jsonResponse({
+      pia: 3414.93,
+      aime: 7000,
+      years_of_zero_in_top_35: 0,
+      awi_approximated: false
+    }));
+
+    const result = await calculatePiaFromEarnings({
+      birthYear: 1966,
+      rows: [
+        { year: 2020, earnings: 90000, isProjected: false },
+        { year: 2027, earnings: 90000, isProjected: true }
+      ]
+    });
+
+    expect(result).toEqual({
+      pia: 3414.93,
+      aime: 7000,
+      yearsOfZeroInTop35: 0,
+      awiApproximated: false
+    });
+    const [, options] = global.fetch.mock.calls[0];
+    expect(JSON.parse(options.body).earnings_history).toEqual([
+      { year: 2020, earnings: 90000, is_projected: false }
+    ]);
   });
 });
 

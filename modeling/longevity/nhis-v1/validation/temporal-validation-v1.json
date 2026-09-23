@@ -1,0 +1,473 @@
+{
+  "modelVersion": "nhis-lmf-2019-v1",
+  "interviewYears": [2010, 2011, 2012, 2013],
+  "horizons": {
+    "4": {
+      "n": 36691,
+      "deaths": 784,
+      "observedMortality": 0.020247824151132847,
+      "predictedMortality": 0.02470450990551027,
+      "error": -0.0044566857543774235,
+      "brier": 0.019192484548352023,
+      "calibrationInTheLarge": -0.18323724232334501,
+      "calibrationSlope": 1.2617602788723574,
+      "observedQuarters": 4,
+      "subgroups": [
+        {
+          "variable": "sex",
+          "level": "female",
+          "n": 21506,
+          "deaths": 409,
+          "observedMortality": 0.017781316779679566,
+          "predictedMortality": 0.022411953497587407,
+          "error": -0.0046306367179078413,
+          "gated": true
+        },
+        {
+          "variable": "sex",
+          "level": "male",
+          "n": 15185,
+          "deaths": 375,
+          "observedMortality": 0.02322954309025688,
+          "predictedMortality": 0.027475942474343876,
+          "error": -0.0042463993840869962,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "60-69",
+          "n": 18346,
+          "deaths": 182,
+          "observedMortality": 0.009343081763804037,
+          "predictedMortality": 0.01100518592748107,
+          "error": -0.0016621041636770331,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "70-79",
+          "n": 11039,
+          "deaths": 212,
+          "observedMortality": 0.018455987909401252,
+          "predictedMortality": 0.026173265679486128,
+          "error": -0.0077172777700848759,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "80+",
+          "n": 7306,
+          "deaths": 390,
+          "observedMortality": 0.05621325834456245,
+          "predictedMortality": 0.063755827226978215,
+          "error": -0.007542568882415765,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "current",
+          "n": 4338,
+          "deaths": 115,
+          "observedMortality": 0.025544791120424907,
+          "predictedMortality": 0.032107146112281645,
+          "error": -0.0065623549918567385,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "former",
+          "n": 13395,
+          "deaths": 346,
+          "observedMortality": 0.025217727923052734,
+          "predictedMortality": 0.028547947917465569,
+          "error": -0.0033302199944128356,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "never",
+          "n": 18958,
+          "deaths": 323,
+          "observedMortality": 0.015355692145457046,
+          "predictedMortality": 0.020198254510607628,
+          "error": -0.0048425623651505816,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "college",
+          "n": 8778,
+          "deaths": 114,
+          "observedMortality": 0.011298834094941691,
+          "predictedMortality": 0.017169965176226817,
+          "error": -0.0058711310812851261,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "high_school",
+          "n": 18466,
+          "deaths": 502,
+          "observedMortality": 0.027359881185062333,
+          "predictedMortality": 0.030535881900315965,
+          "error": -0.0031760007152536324,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "some",
+          "n": 9447,
+          "deaths": 168,
+          "observedMortality": 0.016497355839046397,
+          "predictedMortality": 0.021831516564921088,
+          "error": -0.0053341607258746912,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "excellent",
+          "n": 16110,
+          "deaths": 136,
+          "observedMortality": 0.0068971526144727931,
+          "predictedMortality": 0.016043879315263191,
+          "error": -0.0091467267007903988,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "fair",
+          "n": 8749,
+          "deaths": 423,
+          "observedMortality": 0.050371359314720393,
+          "predictedMortality": 0.04207542818224045,
+          "error": 0.0082959311324799431,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "good",
+          "n": 11832,
+          "deaths": 225,
+          "observedMortality": 0.019111609393201466,
+          "predictedMortality": 0.025447246817423223,
+          "error": -0.0063356374242217565,
+          "gated": true
+        }
+      ]
+    },
+    "12": {
+      "n": 36691,
+      "deaths": 3071,
+      "observedMortality": 0.079061050423743395,
+      "predictedMortality": 0.078617257925031173,
+      "error": 0.0004437924987122227,
+      "brier": 0.065166870276175584,
+      "calibrationInTheLarge": 0.085046440852006924,
+      "calibrationSlope": 1.273859322437642,
+      "observedQuarters": 12,
+      "subgroups": [
+        {
+          "variable": "sex",
+          "level": "female",
+          "n": 21506,
+          "deaths": 1638,
+          "observedMortality": 0.07064688978381943,
+          "predictedMortality": 0.072021465135920656,
+          "error": -0.0013745753521012261,
+          "gated": true
+        },
+        {
+          "variable": "sex",
+          "level": "male",
+          "n": 15185,
+          "deaths": 1433,
+          "observedMortality": 0.089232786550406951,
+          "predictedMortality": 0.086590799989185174,
+          "error": 0.0026419865612217763,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "60-69",
+          "n": 18346,
+          "deaths": 677,
+          "observedMortality": 0.034209262802489329,
+          "predictedMortality": 0.035192960541756739,
+          "error": -0.00098369773926740983,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "70-79",
+          "n": 11039,
+          "deaths": 871,
+          "observedMortality": 0.076753842571875799,
+          "predictedMortality": 0.083491597732488862,
+          "error": -0.0067377551606130626,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "80+",
+          "n": 7306,
+          "deaths": 1523,
+          "observedMortality": 0.21864430892794459,
+          "predictedMortality": 0.20204223876952682,
+          "error": 0.016602070158417775,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "current",
+          "n": 4338,
+          "deaths": 440,
+          "observedMortality": 0.094451640891423327,
+          "predictedMortality": 0.099264362181563301,
+          "error": -0.0048127212901399735,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "former",
+          "n": 13395,
+          "deaths": 1317,
+          "observedMortality": 0.09470622264369484,
+          "predictedMortality": 0.090336490099910433,
+          "error": 0.0043697325437844076,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "never",
+          "n": 18958,
+          "deaths": 1314,
+          "observedMortality": 0.063941504459022178,
+          "predictedMortality": 0.065297849846871509,
+          "error": -0.0013563453878493309,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "college",
+          "n": 8778,
+          "deaths": 491,
+          "observedMortality": 0.051799049276896457,
+          "predictedMortality": 0.055238423790865403,
+          "error": -0.0034393745139689458,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "high_school",
+          "n": 18466,
+          "deaths": 1925,
+          "observedMortality": 0.10117728717247271,
+          "predictedMortality": 0.096712190226724518,
+          "error": 0.0044650969457481898,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "some",
+          "n": 9447,
+          "deaths": 655,
+          "observedMortality": 0.066817112147614419,
+          "predictedMortality": 0.069701142852687678,
+          "error": -0.0028840307050732594,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "excellent",
+          "n": 16110,
+          "deaths": 721,
+          "observedMortality": 0.038777162861080607,
+          "predictedMortality": 0.052085907805889432,
+          "error": -0.013308744944808826,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "fair",
+          "n": 8749,
+          "deaths": 1393,
+          "observedMortality": 0.16655466167721009,
+          "predictedMortality": 0.13086383927599485,
+          "error": 0.035690822401215239,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "good",
+          "n": 11832,
+          "deaths": 957,
+          "observedMortality": 0.077951024795009954,
+          "predictedMortality": 0.081552768618836632,
+          "error": -0.003601743823826678,
+          "gated": true
+        }
+      ]
+    },
+    "20": {
+      "n": 36691,
+      "deaths": 5588,
+      "observedMortality": 0.1423620315691555,
+      "predictedMortality": 0.13716569613023999,
+      "error": 0.0051963354389155114,
+      "brier": 0.10229337148935333,
+      "calibrationInTheLarge": 0.18262487196638674,
+      "calibrationSlope": 1.2896320125424472,
+      "observedQuarters": 20,
+      "subgroups": [
+        {
+          "variable": "sex",
+          "level": "female",
+          "n": 21506,
+          "deaths": 3031,
+          "observedMortality": 0.13070225320952905,
+          "predictedMortality": 0.12675888604906624,
+          "error": 0.0039433671604628129,
+          "gated": true
+        },
+        {
+          "variable": "sex",
+          "level": "male",
+          "n": 15185,
+          "deaths": 2557,
+          "observedMortality": 0.15645733992430644,
+          "predictedMortality": 0.14974631237896405,
+          "error": 0.0067110275453423907,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "60-69",
+          "n": 18346,
+          "deaths": 1274,
+          "observedMortality": 0.064392745764122225,
+          "predictedMortality": 0.063014979910744062,
+          "error": 0.0013777658533781628,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "70-79",
+          "n": 11039,
+          "deaths": 1649,
+          "observedMortality": 0.14381058061962668,
+          "predictedMortality": 0.14729927307748453,
+          "error": -0.0034886924578578504,
+          "gated": true
+        },
+        {
+          "variable": "age_band",
+          "level": "80+",
+          "n": 7306,
+          "deaths": 2665,
+          "observedMortality": 0.37601202819990631,
+          "predictedMortality": 0.34494079067806827,
+          "error": 0.031071237521838047,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "current",
+          "n": 4338,
+          "deaths": 806,
+          "observedMortality": 0.17449666512957634,
+          "predictedMortality": 0.1700248585474623,
+          "error": 0.0044718065821140462,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "former",
+          "n": 13395,
+          "deaths": 2358,
+          "observedMortality": 0.16511776696586988,
+          "predictedMortality": 0.15656348101996245,
+          "error": 0.0085542859459074305,
+          "gated": true
+        },
+        {
+          "variable": "smoking",
+          "level": "never",
+          "n": 18958,
+          "deaths": 2424,
+          "observedMortality": 0.11823901769378121,
+          "predictedMortality": 0.11540707328656674,
+          "error": 0.0028319444072144734,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "college",
+          "n": 8778,
+          "deaths": 892,
+          "observedMortality": 0.093534215369058135,
+          "predictedMortality": 0.09773065328993405,
+          "error": -0.0041964379208759145,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "high_school",
+          "n": 18466,
+          "deaths": 3473,
+          "observedMortality": 0.18019387950987234,
+          "predictedMortality": 0.16757192211338803,
+          "error": 0.012621957396484307,
+          "gated": true
+        },
+        {
+          "variable": "education",
+          "level": "some",
+          "n": 9447,
+          "deaths": 1223,
+          "observedMortality": 0.12366809003765168,
+          "predictedMortality": 0.12233707461485049,
+          "error": 0.0013310154228011878,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "excellent",
+          "n": 16110,
+          "deaths": 1466,
+          "observedMortality": 0.080150754040717809,
+          "predictedMortality": 0.093180592933306952,
+          "error": -0.013029838892589143,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "fair",
+          "n": 8749,
+          "deaths": 2337,
+          "observedMortality": 0.27457284443108637,
+          "predictedMortality": 0.22200514566469617,
+          "error": 0.052567698766390197,
+          "gated": true
+        },
+        {
+          "variable": "health",
+          "level": "good",
+          "n": 11832,
+          "deaths": 1785,
+          "observedMortality": 0.14263019738430713,
+          "predictedMortality": 0.14324447325901973,
+          "error": -0.00061427587471260536,
+          "gated": true
+        }
+      ]
+    }
+  },
+  "gates": {
+    "overallErrorMax": 0.02,
+    "subgroupErrorMax": 0.029999999999999999,
+    "subgroupDeathsMin": 100,
+    "calibrationSlopeMin": 0.80000000000000004,
+    "calibrationSlopeMax": 1.2,
+    "passed": false
+  }
+}

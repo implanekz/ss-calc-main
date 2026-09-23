@@ -1,4 +1,4 @@
-import { ageInMonths, calculateProjection, combineProjections } from './projections';
+import { ageInMonths, calculateProjection, combineProjections, resolveProjectionEndYear } from './projections';
 
 describe('show me the money projections', () => {
   test('calculates exact age in months', () => {
@@ -116,5 +116,47 @@ describe('show me the money projections', () => {
     expect(combined.monthly[2030]).toBe(3000);
     expect(combined.monthly[2031]).toBe(2100);
     expect(combined.cumulative[2031]).toBe(61200);
+  });
+
+  test('explicit endYear produces financial data through the final displayed year', () => {
+    const projection = calculateProjection({
+      pia: 2500,
+      dob: '1965-06-15',
+      filingYear: 67,
+      inflationRate: 0.025,
+      asOfDate: new Date(2026, 7, 31),
+      endYear: 2070
+    });
+    expect(Object.keys(projection.monthly).map(Number).at(-1)).toBe(2070);
+    expect(projection.cumulative[2070]).toBeGreaterThan(projection.cumulative[2069]);
+  });
+
+  test('default horizon remains age 95 for existing callers', () => {
+    const projection = calculateProjection({
+      pia: 2500,
+      dob: '1965-06-15',
+      filingYear: 67,
+      inflationRate: 0.025,
+      asOfDate: new Date(2026, 7, 31)
+    });
+    expect(Object.keys(projection.monthly).map(Number).at(-1)).toBe(2060);
+  });
+
+  test('explicit endYear before the projection start year is rejected', () => {
+    expect(() => calculateProjection({
+      pia: 2000,
+      dob: '2000-06-15',
+      filingYear: 62,
+      inflationRate: 0,
+      asOfDate: new Date(2026, 7, 31),
+      endYear: 2060
+    })).toThrow('endYear must be on or after the projection start year');
+  });
+
+  test('resolveProjectionEndYear lifts a shared axis that is before a person\'s start', () => {
+    expect(resolveProjectionEndYear('2000-06-15', 2060)).toBe(2062);
+    expect(resolveProjectionEndYear('1950-06-15', 2060)).toBe(2060);
+    expect(resolveProjectionEndYear('1965-06-15', undefined)).toBeUndefined();
+    expect(Number.isNaN(resolveProjectionEndYear('1965-06-15', NaN))).toBe(true);
   });
 });

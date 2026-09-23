@@ -11,8 +11,14 @@ import { useCalculatorPersistence } from '../hooks/useCalculatorPersistence';
 import { useNavigate } from 'react-router-dom';
 import { OneMonthAtATimeModal } from './OneMonthAtATime';
 import { OurLifelongTimeline } from './OurLifelongTimeline';
+import HouseholdWorkStopPanel from './HouseholdWorkStopPanel';
 import { isTimelineReachable, getHouseholdBucket } from './OurLifelongTimeline/timelineMath';
-import { calculateProjection, combineProjections } from '../calculators/showMeTheMoney/projections';
+import { calculateProjection, combineProjections, resolveProjectionEndYear } from '../calculators/showMeTheMoney/projections';
+import { buildLongevitySummary } from '../calculators/longevity/summary';
+import {
+    emptyLongevityProfile,
+    migrateLifeExpectancyPreferences
+} from '../calculators/longevity/preferences';
 import { applyBenefitCut, calculateAxisRanges } from '../calculators/showMeTheMoney/ssCuts';
 import {
     createScenario,
@@ -21,10 +27,23 @@ import {
     deserializeScenario,
     PROVENANCE,
     hasThirtyFiveNonZeroYears,
-    planLabel
+    planLabel,
+    effectivePia,
+    piaFieldView,
+    resolveEnteredPia,
+    householdWorkStopRungsForRelationship
 } from '../calculators/showMeTheMoney/scenario';
-import { fetchEarnings, fetchWorkStopLadder } from '../services/earningsService';
+import { fetchEarnings, fetchWorkStopLadder, calculatePiaFromEarnings, readDevEarnings } from '../services/earningsService';
+import { describeEarningsVintage } from '../utils/earningsVintage';
+import { readWorkshopPia, disableWorkshopPia, workshopPiaHydrationAction } from '../utils/workshopPia';
 import { getAuthToken } from '../config/supabase';
+import { SCENARIO_COLORS, SCENARIO_TINTS, SCENARIO_INK, STAGE_COLORS, STAGE_GRIP_COLOR, STAGE_BORDER_COLOR, REFERENCE_COLORS, SIGNAL_COLORS, CHART_CHROME, withAlpha } from '../theme/navigatorColors';
+
+const birthYearFromDob = (dob) => {
+    if (!dob) return null;
+    const year = new Date(dob).getFullYear();
+    return Number.isNaN(year) ? null : year;
+};
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin, SankeyController, Flow, BubbleController);
 
@@ -114,25 +133,26 @@ const RetirementStagesSlider = ({
     const noGoWidth = 100 - ageToPercent(slowGoEndAge);
 
     return (
-        <div className="w-full opacity-80" style={{ paddingLeft: '60px', paddingRight: '30px' }}>
-            <div ref={sliderRef} className="relative h-9 flex rounded-lg overflow-hidden shadow-md border-2 border-gray-300">
+        <div className="w-full" style={{ paddingLeft: '60px', paddingRight: '30px' }}>
+            <div ref={sliderRef} className="relative h-9 flex rounded-md overflow-hidden border" style={{ borderColor: STAGE_BORDER_COLOR }}>
                 {/* Go-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${goGoWidth}%`,
-                        backgroundColor: '#E67E22', // Carrot (Flat UI) - Assumed correction for #E6E22
+                        backgroundColor: STAGE_COLORS.goGo.bg,
+                        color: STAGE_COLORS.goGo.text,
                     }}
                 >
                     {label && (
-                        <div className="absolute left-3 px-2 py-0.5 bg-black/25 text-white font-extrabold text-xs rounded tracking-wider uppercase select-none">
+                        <div className="absolute left-3 px-2 py-0.5 bg-white/70 font-extrabold text-xs rounded tracking-wider uppercase select-none" style={{ color: STAGE_COLORS.goGo.text }}>
                             {label}
                         </div>
                     )}
                     {goGoWidth > (label ? 22 : 15) ? (
-                        <span className="drop-shadow-sm">Go-Go Years</span>
+                        <span>Go-Go Years</span>
                     ) : goGoWidth > (label ? 15 : 8) ? (
-                        <span className="drop-shadow-sm">Go-Go</span>
+                        <span>Go-Go</span>
                     ) : null}
                 </div>
 
@@ -142,9 +162,9 @@ const RetirementStagesSlider = ({
                     style={{ left: `calc(${goGoWidth}% - 16px)` }}
                     onMouseDown={handleGoGoMouseDown}
                 >
-                    <div className={`w-1 h-full transition-all ${isDraggingGoGo ? 'bg-gray-800 w-2' : 'bg-gray-600 group-hover:bg-gray-700 group-hover:w-1.5'}`} />
+                    <div className={`h-full transition-all ${isDraggingGoGo ? 'w-1' : 'w-px group-hover:w-0.5'}`} style={{ backgroundColor: STAGE_GRIP_COLOR, opacity: 0.35 }} />
                     {/* Draggable handle indicator */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 bg-gray-800 rounded transition-all ${isDraggingGoGo ? 'w-4 h-8 shadow-lg' : 'w-3 h-6 group-hover:w-4 group-hover:h-8 group-hover:shadow-md'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 rounded-sm transition-all ${isDraggingGoGo ? 'w-2 h-6' : 'w-1.5 h-5 group-hover:w-2 group-hover:h-6'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }}>
                         {/* Grip dots */}
                         <div className="flex flex-col items-center justify-center h-full gap-0.5">
                             <div className="w-0.5 h-0.5 bg-white rounded-full opacity-70"></div>
@@ -156,16 +176,17 @@ const RetirementStagesSlider = ({
 
                 {/* Slow-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${slowGoWidth}%`,
-                        backgroundColor: '#F1C40F', // Sunflower (Flat UI)
+                        backgroundColor: STAGE_COLORS.slowGo.bg,
+                        color: STAGE_COLORS.slowGo.text,
                     }}
                 >
                     {slowGoWidth > 15 ? (
-                        <span className="drop-shadow-sm">Slow-Go Years</span>
+                        <span>Slow-Go Years</span>
                     ) : slowGoWidth > 8 ? (
-                        <span className="drop-shadow-sm">Slow-Go</span>
+                        <span>Slow-Go</span>
                     ) : null}
                 </div>
 
@@ -175,9 +196,9 @@ const RetirementStagesSlider = ({
                     style={{ left: `calc(${goGoWidth + slowGoWidth}% - 16px)` }}
                     onMouseDown={handleSlowGoMouseDown}
                 >
-                    <div className={`w-1 h-full transition-all ${isDraggingSlowGo ? 'bg-gray-800 w-2' : 'bg-gray-600 group-hover:bg-gray-700 group-hover:w-1.5'}`} />
+                    <div className={`h-full transition-all ${isDraggingSlowGo ? 'w-1' : 'w-px group-hover:w-0.5'}`} style={{ backgroundColor: STAGE_GRIP_COLOR, opacity: 0.35 }} />
                     {/* Draggable handle indicator */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 bg-gray-800 rounded transition-all ${isDraggingSlowGo ? 'w-4 h-8 shadow-lg' : 'w-3 h-6 group-hover:w-4 group-hover:h-8 group-hover:shadow-md'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 rounded-sm transition-all ${isDraggingSlowGo ? 'w-2 h-6' : 'w-1.5 h-5 group-hover:w-2 group-hover:h-6'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }}>
                         {/* Grip dots */}
                         <div className="flex flex-col items-center justify-center h-full gap-0.5">
                             <div className="w-0.5 h-0.5 bg-white rounded-full opacity-70"></div>
@@ -189,16 +210,17 @@ const RetirementStagesSlider = ({
 
                 {/* No-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${noGoWidth}%`,
-                        backgroundColor: '#95A5A6', // Concrete (Flat UI)
+                        backgroundColor: STAGE_COLORS.noGo.bg,
+                        color: STAGE_COLORS.noGo.text,
                     }}
                 >
                     {noGoWidth > 15 ? (
-                        <span className="drop-shadow-sm">No-Go Years</span>
+                        <span>No-Go Years</span>
                     ) : noGoWidth > 8 ? (
-                        <span className="drop-shadow-sm">No-Go</span>
+                        <span>No-Go</span>
                     ) : null}
                 </div>
             </div>
@@ -305,7 +327,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age62Monthly,
             covered: Math.min(age62Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age62Monthly),
-            color: '#EF4444'
+            color: SCENARIO_COLORS.age62
         },
         {
             label: `File at ${preferredFilingYear}${preferredFilingMonth > 0 ? `y ${preferredFilingMonth}m` : ''}`,
@@ -313,7 +335,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age67Monthly,
             covered: Math.min(age67Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age67Monthly),
-            color: '#3B82F6'
+            color: SCENARIO_COLORS.preferred
         },
         {
             label: 'File at 70',
@@ -321,11 +343,11 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age70Monthly,
             covered: Math.min(age70Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age70Monthly),
-            color: '#14B8A6'
+            color: SCENARIO_COLORS.age70
         }
     ];
 
-    const gapColor = '#9CA3AF'; // Gray for gaps
+    const gapColor = SIGNAL_COLORS.cautionSoft; // Shortfall that savings must cover
 
     const width = svgWidth;
     const height = svgHeight; // was 700 fixed
@@ -352,7 +374,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: hybridTotalIncome,
             covered: Math.min(hybridTotalIncome, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - hybridTotalIncome),
-            color: '#9333EA'
+            color: SCENARIO_COLORS.hybrid
         }
         : scenarios[selectedStrategy];
 
@@ -538,7 +560,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <g>
                             <path
                                 d={flowPathLower}
-                                fill="#EF4444"
+                                fill={SCENARIO_COLORS.age62}
                                 opacity="0.5"
                                 className="flow-path"
                             />
@@ -553,7 +575,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <g>
                             <path
                                 d={flowPathHigher}
-                                fill="#14B8A6"
+                                fill={SCENARIO_COLORS.age70}
                                 opacity="0.5"
                                 className="flow-path"
                             />
@@ -583,7 +605,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                             cy={baseY - lowerHeight - higherHeight - 30}
                                             r="8"
                                             fill="white"
-                                            stroke="#9333EA"
+                                            stroke={SCENARIO_COLORS.hybrid}
                                             strokeWidth="2"
                                             style={{ cursor: 'pointer' }}
                                             onClick={() => setSelectedStrategy(3)}
@@ -593,7 +615,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                 cx={hybridX + barWidth / 2}
                                                 cy={baseY - lowerHeight - higherHeight - 30}
                                                 r="4"
-                                                fill="#9333EA"
+                                                fill={SCENARIO_COLORS.hybrid}
                                                 style={{ cursor: 'pointer' }}
                                                 onClick={() => setSelectedStrategy(3)}
                                             />
@@ -607,7 +629,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                     y={baseY - lowerHeight}
                                                     width={barWidth}
                                                     height={lowerHeight}
-                                                    fill="#EF4444"
+                                                    fill={SCENARIO_COLORS.age62}
                                                     rx="8"
                                                     opacity={barOpacity}
                                                     className="flow-bar"
@@ -630,7 +652,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                     y={baseY - lowerHeight - higherHeight}
                                                     width={barWidth}
                                                     height={higherHeight}
-                                                    fill="#14B8A6"
+                                                    fill={SCENARIO_COLORS.age70}
                                                     rx="8"
                                                     opacity={barOpacity}
                                                     className="flow-bar"
@@ -776,7 +798,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                     x={barX + barWidth / 2}
                                     y={baseY - coveredHeight / 2 - 8}
                                     textAnchor="middle"
-                                    fill="white"
+                                    fill={scenario.color === SCENARIO_COLORS.preferred ? CHART_CHROME.ink : 'white'}
                                     fontSize="13"
                                     fontWeight="600"
                                     className="flow-text"
@@ -790,7 +812,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                         x={barX + barWidth / 2}
                                         y={baseY - coveredHeight - gapHeight / 2}
                                         textAnchor="middle"
-                                        fill="white"
+                                        fill="#5C4A12"
                                         fontSize="12"
                                         fontWeight="600"
                                         className="flow-text"
@@ -812,7 +834,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                 y={baseY - (selectedScenario.covered / inflatedMonthlyNeeds) * targetHeight}
                                 width={barWidth}
                                 height={(selectedScenario.covered / inflatedMonthlyNeeds) * targetHeight}
-                                fill="#C2410C"
+                                fill={selectedScenario.color}
                                 rx="8"
                                 opacity="0.9"
                                 className="flow-bar"
@@ -831,7 +853,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                         y={baseY - targetHeight}
                                         width={barWidth}
                                         height={(selectedScenario.gap / inflatedMonthlyNeeds) * targetHeight}
-                                        fill="#FB923C"
+                                        fill={SIGNAL_COLORS.cautionSoft}
                                         rx="8"
                                         opacity="0.85"
                                         className="flow-bar"
@@ -847,7 +869,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                             x={rightX + barWidth / 2}
                                             y={baseY - targetHeight + ((selectedScenario.gap / inflatedMonthlyNeeds) * targetHeight) / 2}
                                             textAnchor="middle"
-                                            fill="white"
+                                            fill="#5C4A12"
                                             fontSize="13"
                                             fontWeight="600"
                                             className="flow-text"
@@ -885,7 +907,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <div className="text-xs font-semibold text-gray-600 mb-1">{scenario.label}</div>
                         <div className="text-sm">
                             <span className="text-gray-900 font-medium">Gap: </span>
-                            <span className={scenario.gap > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}>
+                            <span className="font-bold" style={{ color: scenario.gap > 0 ? SIGNAL_COLORS.loss : SIGNAL_COLORS.gain }}>
                                 {scenario.gap > 0 ? currencyFormatter.format(Math.round(scenario.gap)) : 'Covered!'}
                             </span>
                         </div>
@@ -1031,17 +1053,17 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {
                     name: 'File at 62',
                     value: projections.age62.monthly[calendarYear] || 0,
-                    color: '#EF4444'
+                    color: SCENARIO_COLORS.age62
                 },
                 {
                     name: 'File at 67',
                     value: projections.preferred.monthly[calendarYear] || 0,
-                    color: '#3B82F6'
+                    color: SCENARIO_COLORS.preferred
                 },
                 {
                     name: 'File at 70',
                     value: projections.age70.monthly[calendarYear] || 0,
-                    color: '#14B8A6'
+                    color: SCENARIO_COLORS.age70
                 }
             ];
 
@@ -1060,7 +1082,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 62 - Total',
             value: age62Value,
-            color: '#EF4444',
+            color: SCENARIO_COLORS.age62,
             isSince70: false
         });
 
@@ -1068,7 +1090,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 62 - Since 70',
                 value: age62Since70,
-                color: '#F87171',
+                color: SCENARIO_TINTS.age62,
                 isSince70: true
             });
         }
@@ -1081,7 +1103,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 67 - Total',
             value: age67Value,
-            color: '#3B82F6',
+            color: SCENARIO_COLORS.preferred,
             isSince70: false
         });
 
@@ -1089,7 +1111,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 67 - Since 70',
                 value: age67Since70,
-                color: '#60A5FA',
+                color: SCENARIO_TINTS.preferred,
                 isSince70: true
             });
         }
@@ -1102,7 +1124,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 70 - Total',
             value: age70Value,
-            color: '#14B8A6',
+            color: SCENARIO_COLORS.age70,
             isSince70: false
         });
 
@@ -1110,7 +1132,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 70 - Since 70',
                 value: age70Since70,
-                color: '#5EEAD4',
+                color: SCENARIO_TINTS.age70,
                 isSince70: true
             });
         }
@@ -1424,8 +1446,8 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY}
                                     width={boxWidth}
                                     height={boxHeight}
-                                    fill={difference >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}
-                                    stroke={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gainSoft : SIGNAL_COLORS.lossSoft}
+                                    stroke={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                     strokeWidth="3"
                                     rx="12"
                                 />
@@ -1460,7 +1482,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     textAnchor="middle"
                                     fontSize={Math.round(36 * s)}
                                     fontWeight="700"
-                                    fill={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                 >
                                     {difference >= 0 ? '+' : ''}{currencyFormatter.format(Math.round(difference))}
                                 </text>
@@ -1471,7 +1493,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 185 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(18 * s)}
-                                    fill="#059669"
+                                    fill={SIGNAL_COLORS.gain}
                                     fontWeight="600"
                                 >
                                     🏆 {topName.replace(' - Total', '')}
@@ -1482,7 +1504,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 215 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(20 * s)}
-                                    fill="#059669"
+                                    fill={SIGNAL_COLORS.gain}
                                     fontWeight="700"
                                 >
                                     {currencyFormatter.format(Math.round(topValue))}
@@ -1494,7 +1516,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 255 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(18 * s)}
-                                    fill="#DC2626"
+                                    fill={SIGNAL_COLORS.loss}
                                     fontWeight="600"
                                 >
                                     {bottomName.replace(' - Total', '')}
@@ -1505,7 +1527,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 285 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(20 * s)}
-                                    fill="#DC2626"
+                                    fill={SIGNAL_COLORS.loss}
                                     fontWeight="700"
                                 >
                                     {currencyFormatter.format(Math.round(bottomValue))}
@@ -1540,7 +1562,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     textAnchor="middle"
                                     fontSize={Math.round(32 * s)}
                                     fontWeight="700"
-                                    fill={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                 >
                                     {difference >= 0 ? '+' : ''}{currencyFormatter.format(Math.round(raceViewMode === 'monthly' ? difference * 12 : difference))}
                                 </text>
@@ -1556,7 +1578,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 62 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-red-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.age62 }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 62</div>
                     </div>
                     <div className="space-y-1">
@@ -1580,7 +1602,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 67 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-blue-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.preferred }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 67</div>
                     </div>
                     <div className="space-y-1">
@@ -1604,9 +1626,9 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 70 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-teal-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.age70 }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 70</div>
-                        {raceData[0] && raceData[0].name.includes('File at 70') && <span className="ml-auto text-sm font-bold text-green-600">🏆 Leading</span>}
+                        {raceData[0] && raceData[0].name.includes('File at 70') && <span className="ml-auto text-sm font-bold" style={{ color: SCENARIO_INK.age70 }}>🏆 Leading</span>}
                     </div>
                     <div className="space-y-1">
                         <div className="text-sm">
@@ -1788,12 +1810,17 @@ const ShowMeTheMoneyCalculator = () => {
 
         (async () => {
             const token = await getAuthToken();
-            if (!token || cancelled) return;
+            if (cancelled) return;
             try {
-                const records = await fetchEarnings(token);
+                const records = token ? await fetchEarnings(token) : readDevEarnings();
                 if (cancelled) return;
                 if (records.spouse1) dispatch({ type: 'SET_EARNINGS', person: 'spouse1', record: records.spouse1 });
                 if (records.spouse2) dispatch({ type: 'SET_EARNINGS', person: 'spouse2', record: records.spouse2 });
+                const workshop = readWorkshopPia();
+                for (const person of ['spouse1', 'spouse2']) {
+                    const action = workshopPiaHydrationAction(person, workshop[person]);
+                    if (action) dispatch(action);
+                }
             } catch (error) {
                 console.error('Could not load earnings records:', error);
             }
@@ -1805,23 +1832,66 @@ const ShowMeTheMoneyCalculator = () => {
     // Work-stop ladder is derived display data computed from the verified
     // earnings record — it is not a scenario input, so it stays in useState
     // rather than the scenario reducer.
-    const [workStopLadder, setWorkStopLadder] = useState(null);
+    const [workStopLadders, setWorkStopLadders] = useState({ spouse1: null, spouse2: null });
 
     useEffect(() => {
-        const record = scenario.earnings.spouse1;
-        if (!record) { setWorkStopLadder(null); return; }
-
         let cancelled = false;
-        fetchWorkStopLadder({
-            birthYear: record.birthYear,
-            rows: record.rows,
-            stopAges: [62, 65, 67, 70]
-        })
-            .then((rungs) => { if (!cancelled) setWorkStopLadder(rungs); })
-            .catch((error) => console.error('Could not compute work-stop ladder:', error));
+
+        (async () => {
+            const next = { spouse1: null, spouse2: null };
+            for (const person of ['spouse1', 'spouse2']) {
+                const record = scenario.earnings[person];
+                if (!record) continue;
+                const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+                const birthYear = birthYearFromDob(dob) ?? record.birthYear;
+                try {
+                    next[person] = await fetchWorkStopLadder({
+                        birthYear,
+                        rows: record.rows,
+                        stopAges: [62, 65, 67, 70]
+                    });
+                } catch (error) {
+                    console.error(`Could not compute work-stop ladder for ${person}:`, error);
+                }
+            }
+            if (!cancelled) setWorkStopLadders(next);
+        })();
 
         return () => { cancelled = true; };
-    }, [scenario.earnings.spouse1]);
+        // Nested earnings fields are the actual triggers; `scenario.earnings` identity is unstable.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
+
+    // Earnings-derived PIA from banked rows only. Profile DOB wins over the
+    // year stored on the earnings record.
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            for (const person of ['spouse1', 'spouse2']) {
+                const record = scenario.earnings[person];
+                if (!record) continue;
+                const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+                const birthYear = birthYearFromDob(dob) ?? record.birthYear;
+                if (!birthYear) continue;
+                try {
+                    const result = await calculatePiaFromEarnings({
+                        birthYear,
+                        rows: record.rows
+                    });
+                    if (!cancelled) {
+                        dispatch({ type: 'SET_DERIVED_PIA', person, pia: result.pia });
+                    }
+                } catch (error) {
+                    console.error(`Could not derive PIA from earnings for ${person}:`, error);
+                }
+            }
+        })();
+
+        return () => { cancelled = true; };
+        // Nested earnings fields are the actual triggers; `scenario.earnings` identity is unstable.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scenario.earnings.spouse1, scenario.earnings.spouse2, spouse1Dob, spouse2Dob]);
 
     // Track if we've loaded initial persisted state to prevent infinite loop
     const hasLoadedPersistedState = useRef(false);
@@ -1838,10 +1908,8 @@ const ShowMeTheMoneyCalculator = () => {
     useEffect(() => {
         if (isLoaded && persistedState && !hasLoadedPersistedState.current) {
             hasLoadedPersistedState.current = true;
-            // Deliberately NOT restored: isMarried, spouse1Dob, spouse2Dob, spouse1Pia,
-            // spouse2Pia and both spouses' preferred ages. Those are owned by the
-            // profile/partners/preferences sync effect below so the calculator always
-            // reflects Onboarding rather than a stale saved copy.
+            // DOB, relationship, and preferred ages remain profile-owned. A saved
+            // typed PIA is used only as a fallback below when the profile has none.
             const restored = deserializeScenario(persistedState);
             [
                 'inflation',
@@ -1867,8 +1935,24 @@ const ShowMeTheMoneyCalculator = () => {
                 assumptions: restored.assumptions,
                 schemaVersion: restored.schemaVersion
             });
+
+            // Profile data remains authoritative, but a typed PIA that has only
+            // reached calculator persistence must survive a trip to the PIA
+            // Calculator. This fallback updates scenario state only.
+            const profilePia = profile?.pia_at_fra ?? profile?.piaAtFra ?? profile?.own_pia ?? profile?.ownPia;
+            const restoredSpouse1Pia = resolveEnteredPia(profilePia, restored.spouse1Pia);
+            if (profilePia == null && restoredSpouse1Pia !== '') {
+                dispatch({ type: 'SET_FIELD', field: 'spouse1Pia', value: restoredSpouse1Pia });
+            }
+
+            const partner = partners?.[0];
+            const partnerPia = partner?.pia_at_fra ?? partner?.piaAtFra ?? partner?.pia;
+            const restoredSpouse2Pia = resolveEnteredPia(partnerPia, restored.spouse2Pia);
+            if (partnerPia == null && restoredSpouse2Pia !== '') {
+                dispatch({ type: 'SET_FIELD', field: 'spouse2Pia', value: restoredSpouse2Pia });
+            }
         }
-    }, [isLoaded, persistedState]);
+    }, [isLoaded, persistedState, profile, partners]);
 
     // Force Sync with Profile/Partners Data
     // This ensures that if the user updates Onboarding, the calculator reflects it effectively.
@@ -1968,6 +2052,60 @@ const ShowMeTheMoneyCalculator = () => {
     const primaryFirstName = profile?.first_name?.trim() || profile?.firstName?.trim() || 'Bob';
     const spouseFirstName = partners?.[0]?.first_name?.trim() || partners?.[0]?.firstName?.trim() || 'Spouse';
 
+    const longevityAsOfDate = useMemo(() => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }, []);
+
+    const longevityPeople = useMemo(() => {
+        const primaryPersonId = profile?.id || user?.id || null;
+        const partnerPersonId = partners?.[0]?.id || null;
+        const saved = migrateLifeExpectancyPreferences({
+            saved: preferences?.lifeExpectancy,
+            primaryPersonId,
+            partnerPersonId
+        });
+        const people = [];
+        if (primaryPersonId) {
+            people.push({
+                personId: primaryPersonId,
+                name: primaryFirstName,
+                sex: saved.profilesByPersonId[primaryPersonId]?.sex || null,
+                birthDate: spouse1Dob || profile?.date_of_birth || null,
+                profile: saved.profilesByPersonId[primaryPersonId] || emptyLongevityProfile()
+            });
+        }
+        if (isMarried && partnerPersonId) {
+            people.push({
+                personId: partnerPersonId,
+                name: spouseFirstName,
+                sex: saved.profilesByPersonId[partnerPersonId]?.sex || null,
+                birthDate: spouse2Dob || partners[0]?.date_of_birth || null,
+                profile: saved.profilesByPersonId[partnerPersonId] || emptyLongevityProfile()
+            });
+        }
+        return people;
+    }, [
+        isMarried,
+        partners,
+        preferences,
+        primaryFirstName,
+        profile,
+        spouse1Dob,
+        spouse2Dob,
+        spouseFirstName,
+        user
+    ]);
+
+    const longevitySummary = useMemo(
+        () => buildLongevitySummary({ people: longevityPeople, asOfDate: longevityAsOfDate }),
+        [longevityPeople, longevityAsOfDate]
+    );
+
+    const projectionEndYear = Object.keys(longevitySummary.individuals || {}).length > 0
+        ? longevitySummary.axisEndYear
+        : undefined;
+
     // Whose earnings record we actually hold. The banner names the person
     // rather than implying the household is covered: a partner-only upload
     // must not read as verification of the primary's numbers.
@@ -1978,6 +2116,63 @@ const ShowMeTheMoneyCalculator = () => {
         : hasSpouse1Earnings
             ? 'your Social Security earnings record'
             : `${spouseFirstName}'s Social Security earnings record`;
+
+    const usingEarningsForChart = (
+        (hasSpouse1Earnings && scenario.piaSource.spouse1 === 'earnings' && scenario.derivedPia.spouse1 != null) ||
+        (hasSpouse2Earnings && scenario.piaSource.spouse2 === 'earnings' && scenario.derivedPia.spouse2 != null)
+    );
+    const usingWorkshopForChart = (
+        (scenario.piaSource.spouse1 === 'workshop' && scenario.workshopPia.spouse1 != null) ||
+        (scenario.piaSource.spouse2 === 'workshop' && scenario.workshopPia.spouse2 != null)
+    );
+    const workshopThroughYear = ['spouse1', 'spouse2']
+        .map((person) => scenario.piaSource[person] === 'workshop' ? scenario.workshopMeta[person]?.throughYear : null)
+        .find((year) => year != null);
+    const showPiaSourceBanner = scenario.provenance !== PROVENANCE.ESTIMATED || usingWorkshopForChart;
+    const spouse1PiaField = piaFieldView(scenario, 'spouse1');
+    const spouse2PiaField = piaFieldView(scenario, 'spouse2');
+
+    const vintageNotes = ['spouse1', 'spouse2']
+        .filter((person) => scenario.earnings[person])
+        .map((person) => ({
+            person,
+            ...describeEarningsVintage({
+                statementDate: scenario.earnings[person].statementDate,
+                rows: scenario.earnings[person].rows
+            })
+        }))
+        .filter((note) => note.message);
+
+    const birthYearConflicts = ['spouse1', 'spouse2']
+        .filter((person) => {
+            const record = scenario.earnings[person];
+            const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+            const profileYear = birthYearFromDob(dob);
+            return record && profileYear && record.birthYear && record.birthYear !== profileYear;
+        })
+        .map((person) => {
+            const record = scenario.earnings[person];
+            const dob = person === 'spouse1' ? spouse1Dob : spouse2Dob;
+            const who = person === 'spouse1' ? primaryFirstName : spouseFirstName;
+            return {
+                person,
+                message: `${who}'s earnings file says birth year ${record.birthYear}, but the profile uses ${birthYearFromDob(dob)}. We are using the profile date of birth for the PIA.`
+            };
+        });
+
+    const ladderPeople = [
+        hasSpouse1Earnings && workStopLadders.spouse1?.length
+            ? { person: 'spouse1', label: primaryFirstName, rungs: workStopLadders.spouse1, record: scenario.earnings.spouse1 }
+            : null,
+        hasSpouse2Earnings && workStopLadders.spouse2?.length
+            ? { person: 'spouse2', label: spouseFirstName, rungs: workStopLadders.spouse2, record: scenario.earnings.spouse2 }
+            : null
+    ].filter(Boolean);
+    const relationshipStatus = profile?.relationship_status ?? profile?.relationshipStatus;
+    const householdWorkStopRungs = householdWorkStopRungsForRelationship(
+        relationshipStatus,
+        workStopLadders
+    );
 
     const [chartView, setChartView] = useState('monthly'); // monthly, cumulative, combined, earlyLate, post70, sscuts
     const [chartData, setChartData] = useState({ labels: [], datasets: [] });
@@ -2050,27 +2245,34 @@ const ShowMeTheMoneyCalculator = () => {
         return `${years}y ${months}m`;
     };
 
+    const chartSpouse1Pia = effectivePia(scenario, 'spouse1');
+    const chartSpouse2Pia = effectivePia(scenario, 'spouse2');
+
     const scenarioData = useMemo(() => {
+        const primaryEndYear = resolveProjectionEndYear(spouse1Dob, projectionEndYear);
         const primaryAge62 = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 62,
             filingMonth: 0,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: primaryEndYear
         });
         const primaryPreferred = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: spouse1PreferredYear,
             filingMonth: spouse1PreferredMonth,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: primaryEndYear
         });
         const primaryAge70 = calculateProjection({
-            pia: spouse1Pia,
+            pia: chartSpouse1Pia,
             dob: spouse1Dob,
             filingYear: 70,
             filingMonth: 0,
-            inflationRate: inflation
+            inflationRate: inflation,
+            endYear: primaryEndYear
         });
 
         const primaryProjections = {
@@ -2095,26 +2297,30 @@ const ShowMeTheMoneyCalculator = () => {
         let combinedProjections = primaryProjections;
 
         if (isMarried) {
+            const spouseEndYear = resolveProjectionEndYear(spouse2Dob, projectionEndYear);
             const spouseAge62 = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 62,
                 filingMonth: 0,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: spouseEndYear
             });
             const spousePreferredScenario = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: spouse2PreferredYear,
                 filingMonth: spouse2PreferredMonth,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: spouseEndYear
             });
             const spouseAge70 = calculateProjection({
-                pia: spouse2Pia,
+                pia: chartSpouse2Pia,
                 dob: spouse2Dob,
                 filingYear: 70,
                 filingMonth: 0,
-                inflationRate: inflation
+                inflationRate: inflation,
+                endYear: spouseEndYear
             });
 
             spouseProjections = {
@@ -2131,7 +2337,7 @@ const ShowMeTheMoneyCalculator = () => {
 
         }
 
-        const primaryIsLowerPia = !isMarried || spouse1Pia <= spouse2Pia;
+        const primaryIsLowerPia = !isMarried || chartSpouse1Pia <= chartSpouse2Pia;
 
         let earlyLateProjection = primaryProjections.age62;
         let preferredLateProjection = primaryProjections.preferred;
@@ -2175,7 +2381,7 @@ const ShowMeTheMoneyCalculator = () => {
             primaryYears,
             spouseYears
         };
-    }, [isMarried, spouse1Dob, spouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, spouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge]);
+    }, [isMarried, spouse1Dob, chartSpouse1Pia, spouse1PreferredYear, spouse1PreferredMonth, spouse2Dob, chartSpouse2Pia, spouse2PreferredYear, spouse2PreferredMonth, inflation, prematureDeath, deathAge, projectionEndYear]);
 
     // Bubble Chart Data - Calculate 4% Rule Equivalents at selected age
     const bubbleChartData = useMemo(() => {
@@ -2323,26 +2529,34 @@ const ShowMeTheMoneyCalculator = () => {
         }
 
         if (chartView === 'monthly') {
-            const monthlyBarStyle = { barPercentage: 0.6, categoryPercentage: 0.72, borderRadius: 4, maxBarThickness: 55 };
+            const monthlyBarStyle = { barPercentage: 0.92, categoryPercentage: 0.62, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: 'bottom', maxBarThickness: 44 };
             newChartData = {
                 labels,
                 datasets: [
-                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: 'rgba(255, 99, 132, 0.9)', ...monthlyBarStyle },
-                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: 'rgba(54, 162, 235, 0.9)', ...monthlyBarStyle },
-                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: 'rgba(75, 192, 192, 0.9)', ...monthlyBarStyle },
+                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age62, ...monthlyBarStyle },
+                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.preferred, ...monthlyBarStyle },
+                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age70, ...monthlyBarStyle },
                 ]
             };
             newChartOptions = {
                 plugins: {
-                    title: { display: true, text: 'Monthly View' },
-                    tooltip: { callbacks: { label: tooltipLabelFormatter } }
+                    title: { display: true, text: 'What each filing age pays you, year by year', color: '#2D3748', font: { size: 18, weight: '700' } },
+                    tooltip: { callbacks: { label: tooltipLabelFormatter } },
+                    legend: { labels: { color: '#4E4743', boxWidth: 12, boxHeight: 12, font: { size: 14 } } }
                 },
                 layout: { padding: CHART_PADDING },
                 scales: {
-                    x: { title: { text: 'Year' }, ticks: { autoSkip: false } },
+                    x: {
+                        title: { text: 'Year' },
+                        grid: { display: false },
+                        border: { color: '#C8BBAB' },
+                        ticks: { autoSkip: false, color: '#4E4743', font: { size: 14, weight: '700' } }
+                    },
                     y: {
                         title: { text: 'Monthly Benefit ($)' },
-                        ticks: { callback: formatCurrencyTick }
+                        grid: { color: '#ECE6DC' },
+                        border: { display: false, dash: [2, 4] },
+                        ticks: { callback: formatCurrencyTick, color: '#8C8278', font: { size: 13 } }
                     }
                 },
                 animation: {
@@ -2377,9 +2591,9 @@ const ShowMeTheMoneyCalculator = () => {
             newChartData = {
                 labels,
                 datasets: [
-                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: 'red', fill: false },
-                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: 'blue', fill: false },
-                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: 'green', fill: false },
+                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age62, backgroundColor: SCENARIO_COLORS.age62, fill: false },
+                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.preferred, backgroundColor: SCENARIO_COLORS.preferred, fill: false },
+                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age70, backgroundColor: SCENARIO_COLORS.age70, fill: false },
                 ]
             };
             newChartOptions = {
@@ -2422,8 +2636,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Both @62',
                         data: valueMapper((isMarried && combinedProjections?.age62) ? combinedProjections.age62 : primaryProjections.age62),
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        backgroundColor: 'rgba(255, 159, 64, 0.12)',
+                        borderColor: SCENARIO_COLORS.age62,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2431,8 +2645,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Lower PIA @62, Higher PIA @70',
                         data: valueMapper(earlyLateProjection),
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                        borderColor: SCENARIO_COLORS.hybrid,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.hybrid, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2440,8 +2654,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Lower PIA @67, Higher PIA @70',
                         data: valueMapper(preferredLateProjection),
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                        borderColor: SCENARIO_COLORS.preferred,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2449,8 +2663,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Both @70',
                         data: valueMapper(bothLateProjection),
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                        borderColor: SCENARIO_COLORS.age70,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2490,8 +2704,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 62',
                     data: monthlyValues(combinedProjections.age62),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                    borderColor: SCENARIO_COLORS.age62,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2499,8 +2713,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'Preferred Filing Age',
                     data: monthlyValues(combinedProjections.preferred),
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                    borderColor: SCENARIO_COLORS.preferred,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2508,8 +2722,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 70',
                     data: monthlyValues(combinedProjections.age70),
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                    borderColor: SCENARIO_COLORS.age70,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2520,8 +2734,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 62',
                     data: cumulativeAfter70(combinedProjections.age62),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                    borderColor: SCENARIO_COLORS.age62,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2529,8 +2743,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'Preferred Filing Age',
                     data: cumulativeAfter70(combinedProjections.preferred),
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                    borderColor: SCENARIO_COLORS.preferred,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2538,8 +2752,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 70',
                     data: cumulativeAfter70(combinedProjections.age70),
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                    borderColor: SCENARIO_COLORS.age70,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2589,7 +2803,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     `Filing at 62: ${currencyFormatter.format(age62Value)}`,
                                     `Advantage: ${currencyFormatter.format(Math.abs(diff))}`
                                 ],
-                                backgroundColor: 'rgba(16, 185, 129, 0.95)',
+                                backgroundColor: SIGNAL_COLORS.gain,
                                 color: 'white',
                                 font: {
                                     size: 11,
@@ -2612,7 +2826,7 @@ const ShowMeTheMoneyCalculator = () => {
                                 yMax: 'max',
                                 yScaleID: 'y',
                                 adjustScaleRange: false,
-                                borderColor: 'rgba(147, 51, 234, 0.5)',
+                                borderColor: withAlpha(REFERENCE_COLORS.marker, 0.5),
                                 borderWidth: 2,
                                 borderDash: [6, 4],
                                 display: true
@@ -2651,7 +2865,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'File at 62',
                             data: monthlyValues(combinedProjections.age62),
-                            backgroundColor: 'rgba(255, 99, 132, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.age62,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2660,7 +2874,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'Preferred Filing Age',
                             data: monthlyValues(combinedProjections.preferred),
-                            backgroundColor: 'rgba(54, 162, 235, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.preferred,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2669,7 +2883,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'File at 70',
                             data: monthlyValues(combinedProjections.age70),
-                            backgroundColor: 'rgba(75, 192, 192, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.age70,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2678,7 +2892,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative File at 62',
                             data: cumulativeAfter70(combinedProjections.age62),
-                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderColor: SCENARIO_COLORS.age62,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2689,7 +2903,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative Preferred Filing Age',
                             data: cumulativeAfter70(combinedProjections.preferred),
-                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderColor: SCENARIO_COLORS.preferred,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2700,7 +2914,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative File at 70',
                             data: cumulativeAfter70(combinedProjections.age70),
-                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderColor: SCENARIO_COLORS.age70,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2737,12 +2951,12 @@ const ShowMeTheMoneyCalculator = () => {
             newChartData = {
                 labels,
                 datasets: [
-                    { type: 'bar', label: 'Monthly File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: 'rgba(255, 99, 132, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'bar', label: 'Monthly Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: 'rgba(54, 162, 235, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'bar', label: 'Monthly File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: 'rgba(75, 192, 192, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'line', label: 'Cumulative File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: 'red', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
-                    { type: 'line', label: 'Cumulative Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: 'blue', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
-                    { type: 'line', label: 'Cumulative File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: 'green', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'bar', label: 'Monthly File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age62, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'bar', label: 'Monthly Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.preferred, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'bar', label: 'Monthly File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age70, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'line', label: 'Cumulative File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age62, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'line', label: 'Cumulative Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.preferred, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'line', label: 'Cumulative File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age70, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
                 ]
             };
             newChartOptions = {
@@ -2823,9 +3037,9 @@ const ShowMeTheMoneyCalculator = () => {
                 }
 
                 const scenarioConfigs = [
-                    { key: 'age62', label: 'File at 62', barColor: 'rgba(239, 68, 68, 0.78)', lineColor: 'rgba(239, 68, 68, 1)' },
-                    { key: 'preferred', label: 'Preferred Filing Age', barColor: 'rgba(59, 130, 246, 0.78)', lineColor: 'rgba(59, 130, 246, 1)' },
-                    { key: 'age70', label: 'File at 70', barColor: 'rgba(45, 212, 191, 0.78)', lineColor: 'rgba(20, 184, 166, 1)' },
+                    { key: 'age62', label: 'File at 62', barColor: SCENARIO_COLORS.age62, lineColor: SCENARIO_COLORS.age62 },
+                    { key: 'preferred', label: 'Preferred Filing Age', barColor: SCENARIO_COLORS.preferred, lineColor: SCENARIO_COLORS.preferred },
+                    { key: 'age70', label: 'File at 70', barColor: SCENARIO_COLORS.age70, lineColor: SCENARIO_COLORS.age70 },
                 ];
 
                 const scenarios = [];
@@ -2976,9 +3190,9 @@ const ShowMeTheMoneyCalculator = () => {
         }
 
         const scenarioConfigs = [
-            { key: 'age62', label: 'File at 62', barColor: 'rgba(239, 68, 68, 0.78)', lineColor: 'rgba(239, 68, 68, 1)' },
-            { key: 'preferred', label: 'Preferred Filing Age', barColor: 'rgba(59, 130, 246, 0.78)', lineColor: 'rgba(59, 130, 246, 1)' },
-            { key: 'age70', label: 'File at 70', barColor: 'rgba(45, 212, 191, 0.78)', lineColor: 'rgba(20, 184, 166, 1)' },
+            { key: 'age62', label: 'File at 62', barColor: SCENARIO_COLORS.age62, lineColor: SCENARIO_COLORS.age62 },
+            { key: 'preferred', label: 'Preferred Filing Age', barColor: SCENARIO_COLORS.preferred, lineColor: SCENARIO_COLORS.preferred },
+            { key: 'age70', label: 'File at 70', barColor: SCENARIO_COLORS.age70, lineColor: SCENARIO_COLORS.age70 },
         ];
 
         const scenarios = [];
@@ -3057,6 +3271,7 @@ const ShowMeTheMoneyCalculator = () => {
     };
 
     const handlePiaBlur = () => {
+        if (spouse1PiaField.readOnly) return;
         const val = Number(spouse1Pia) || 0;
         if (isDevMode) {
             updateDevProfile({ own_pia: val });
@@ -3067,6 +3282,7 @@ const ShowMeTheMoneyCalculator = () => {
     };
 
     const handleSpousePiaBlur = () => {
+        if (spouse2PiaField.readOnly) return;
         if (!partners?.[0]?.id) return;
         const val = Number(spouse2Pia) || 0;
         if (isDevMode) {
@@ -3107,20 +3323,20 @@ const ShowMeTheMoneyCalculator = () => {
     return (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] overflow-hidden">
             {/* Compact Sidebar */}
-            <div className={`relative bg-white border-r border-gray-200 transition-all duration-300 ${sidebarCollapsed ? 'w-0 lg:w-12' : 'lg:w-80 xl:w-96'
+            <div className={`relative bg-white border-r border-ret1re-sand transition-all duration-300 ${sidebarCollapsed ? 'w-0 lg:w-12' : 'lg:w-80 xl:w-96'
                 }`}>
                 <div className={`h-full ${sidebarCollapsed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                     {!sidebarCollapsed && (
                         <div>
-                            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50 flex justify-between items-start">
+                            <div className="px-5 py-4 border-b border-ret1re-sand bg-ret1re-cream flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-lg font-bold text-gray-900">Controls</h2>
-                                    <p className="text-xs text-gray-600">Adjust your inputs</p>
+                                    <h2 className="font-display text-[28px] leading-none font-bold text-ret1re-navy">Controls</h2>
+                                    <p className="text-sm text-ret1re-warmGray mt-1">Adjust your inputs</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => navigate('/settings')}
-                                        className="p-1.5 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition-all hover:scale-110"
+                                        className="p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors"
                                         title="Settings"
                                     >
                                         <svg
@@ -3135,7 +3351,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     </button>
                                     <button
                                         onClick={() => setSidebarCollapsed(true)}
-                                        className="hidden lg:flex p-1.5 bg-primary-600 text-white rounded-lg shadow-md hover:bg-primary-700 transition-all hover:scale-110"
+                                        className="hidden lg:flex p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors"
                                         title="Collapse controls"
                                     >
                                         <svg
@@ -3152,9 +3368,9 @@ const ShowMeTheMoneyCalculator = () => {
 
                             <div className="p-4 space-y-4">
                                 {/* Primary Filer - Compact */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
                                     <div className="mb-2">
-                                        <h3 className="text-sm font-semibold text-gray-900">{(() => {
+                                        <h3 className="text-base font-bold text-ret1re-navy">{(() => {
                                             const name = (profile?.firstName && profile?.lastName)
                                                 ? `${profile.firstName} ${profile.lastName}`
                                                 : (profile?.first_name && profile?.last_name)
@@ -3162,37 +3378,51 @@ const ShowMeTheMoneyCalculator = () => {
                                                     : 'Primary Filer';
                                             return name;
                                         })()}</h3>
-                                        <p className="text-xs text-gray-600">DOB: {spouse1Dob} • Age: {formatAge(spouse1Dob)}</p>
+                                        <p className="text-sm text-ret1re-mid">DOB: {spouse1Dob} • Age: {formatAge(spouse1Dob)}</p>
                                     </div>
                                     <div className="space-y-2">
                                         <div>
-                                            <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                                Enter Your PIA ($)
+                                            <div className="mb-1 flex items-center gap-1 text-sm text-ret1re-mid">
+                                                <label htmlFor="spouse1-pia">Enter Your PIA ($)</label>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPiaFraModal(true)}
-                                                    className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                    className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                 >
                                                     What's This?
                                                 </button>
-                                            </label>
+                                            </div>
                                             <input
+                                                id="spouse1-pia"
                                                 type="number"
-                                                value={spouse1Pia}
+                                                value={spouse1PiaField.value}
                                                 onChange={e => setSpouse1Pia(e.target.value ? Number(e.target.value) : '')}
                                                 onBlur={handlePiaBlur}
-                                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                                readOnly={spouse1PiaField.readOnly}
+                                                aria-describedby={spouse1PiaField.readOnly ? 'spouse1-pia-source' : undefined}
+                                                className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-ret1re-navy/20 focus:border-ret1re-navy ${
+                                                    spouse1PiaField.readOnly
+                                                        ? 'border-ret1re-navy/30 bg-ret1re-navyTint text-ret1re-navy'
+                                                        : 'border-ret1re-sand'
+                                                }`}
                                                 placeholder="Insert PIA here"
                                             />
+                                            {spouse1PiaField.readOnly && (
+                                                <p id="spouse1-pia-source" className="mt-1 text-sm text-ret1re-navy">
+                                                    {scenario.piaSource.spouse1 === 'workshop'
+                                                        ? 'PIA Calculator value currently driving the chart.'
+                                                        : 'Earnings-record value currently driving the chart.'}
+                                                </p>
+                                            )}
                                         </div>
 
-                                        <div className="bg-primary-100 rounded p-2">
-                                            <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                        <div className="bg-ret1re-navyTint rounded-md p-3">
+                                            <label className="block text-sm font-medium text-ret1re-charcoal mb-1 flex items-center gap-1">
                                                 Preferred Filing Age
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPreferredFilingModal(true)}
-                                                    className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                    className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                 >
                                                     What's This?
                                                 </button>
@@ -3204,7 +3434,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         value={spouse1PreferredYear}
                                                         onChange={e => setSpouse1PreferredYear(Number(e.target.value))}
                                                         onBlur={handleSpouse1AgeBlur}
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                        className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         placeholder="Yr"
                                                     />
                                                 </div>
@@ -3214,7 +3444,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         value={spouse1PreferredMonth}
                                                         onChange={e => setSpouse1PreferredMonth(Number(e.target.value))}
                                                         onBlur={handleSpouse1AgeBlur}
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                        className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         placeholder="Mo"
                                                     />
                                                 </div>
@@ -3222,13 +3452,13 @@ const ShowMeTheMoneyCalculator = () => {
                                         </div>
 
                                         {/* View Only Checkbox - At Bottom */}
-                                        <div className="pt-3 mt-3 border-t border-gray-200">
-                                            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+                                        <div className="pt-3 mt-3 border-t border-ret1re-sand">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-mid hover:text-ret1re-charcoal">
                                                 <input
                                                     type="checkbox"
                                                     checked={activeRecordView === 'primary'}
                                                     onChange={handlePrimaryOnlyToggle}
-                                                    className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                    className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                                 />
                                                 <span title="This setting can also be changed in the Settings section">Show only this person</span>
                                             </label>
@@ -3238,9 +3468,9 @@ const ShowMeTheMoneyCalculator = () => {
 
                                 {/* Spouse - Compact - Always visible when married */}
                                 {isMarried && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                    <div className="border border-ret1re-sand rounded-md p-4 bg-white">
                                         <div className="mb-2">
-                                            <h3 className="text-sm font-semibold text-gray-900">{(() => {
+                                            <h3 className="text-base font-bold text-ret1re-navy">{(() => {
                                                 const sp = partners && partners.length > 0 ? partners[0] : null;
                                                 const name = sp && (sp.firstName && sp.lastName)
                                                     ? `${sp.firstName} ${sp.lastName}`
@@ -3249,37 +3479,51 @@ const ShowMeTheMoneyCalculator = () => {
                                                         : 'Spouse Filer';
                                                 return name;
                                             })()}</h3>
-                                            <p className="text-xs text-gray-600">DOB: {spouse2Dob} • Age: {formatAge(spouse2Dob)}</p>
+                                            <p className="text-sm text-ret1re-mid">DOB: {spouse2Dob} • Age: {formatAge(spouse2Dob)}</p>
                                         </div>
                                         <div className="space-y-2">
                                             <div>
-                                                <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
-                                                    Enter Your PIA ($)
+                                                <div className="mb-1 flex items-center gap-1 text-sm text-ret1re-mid">
+                                                    <label htmlFor="spouse2-pia">Enter Your PIA ($)</label>
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPiaFraModal(true)}
-                                                        className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                        className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                     >
                                                         What's This?
                                                     </button>
-                                                </label>
+                                                </div>
                                                 <input
+                                                    id="spouse2-pia"
                                                     type="number"
-                                                    value={spouse2Pia}
+                                                    value={spouse2PiaField.value}
                                                     onChange={e => setSpouse2Pia(e.target.value ? Number(e.target.value) : '')}
                                                     onBlur={handleSpousePiaBlur}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                                    readOnly={spouse2PiaField.readOnly}
+                                                    aria-describedby={spouse2PiaField.readOnly ? 'spouse2-pia-source' : undefined}
+                                                    className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-ret1re-navy/20 focus:border-ret1re-navy ${
+                                                        spouse2PiaField.readOnly
+                                                            ? 'border-ret1re-navy/30 bg-ret1re-navyTint text-ret1re-navy'
+                                                            : 'border-ret1re-sand'
+                                                    }`}
                                                     placeholder="Insert PIA here"
                                                 />
+                                                {spouse2PiaField.readOnly && (
+                                                    <p id="spouse2-pia-source" className="mt-1 text-sm text-ret1re-navy">
+                                                        {scenario.piaSource.spouse2 === 'workshop'
+                                                            ? 'PIA Calculator value currently driving the chart.'
+                                                            : 'Earnings-record value currently driving the chart.'}
+                                                    </p>
+                                                )}
                                             </div>
 
-                                            <div className="bg-primary-100 rounded p-2">
-                                                <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                            <div className="bg-ret1re-navyTint rounded-md p-3">
+                                                <label className="block text-sm font-medium text-ret1re-charcoal mb-1 flex items-center gap-1">
                                                     Preferred Filing Age
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPreferredFilingModal(true)}
-                                                        className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                        className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                     >
                                                         What's This?
                                                     </button>
@@ -3291,7 +3535,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             value={spouse2PreferredYear}
                                                             onChange={e => setSpouse2PreferredYear(Number(e.target.value))}
                                                             onBlur={handleSpouse2AgeBlur}
-                                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                             placeholder="Yr"
                                                         />
                                                     </div>
@@ -3301,7 +3545,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             value={spouse2PreferredMonth}
                                                             onChange={e => setSpouse2PreferredMonth(Number(e.target.value))}
                                                             onBlur={handleSpouse2AgeBlur}
-                                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                             placeholder="Mo"
                                                         />
                                                     </div>
@@ -3310,13 +3554,13 @@ const ShowMeTheMoneyCalculator = () => {
                                         </div>
 
                                         {/* View Only Checkbox - At Bottom */}
-                                        <div className="pt-3 mt-3 border-t border-gray-200">
-                                            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+                                        <div className="pt-3 mt-3 border-t border-ret1re-sand">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-mid hover:text-ret1re-charcoal">
                                                 <input
                                                     type="checkbox"
                                                     checked={activeRecordView === 'spouse'}
                                                     onChange={handleSpouseOnlyToggle}
-                                                    className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                    className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                                 />
                                                 <span title="This setting can also be changed in the Settings section">Show only this person</span>
                                             </label>
@@ -3325,20 +3569,20 @@ const ShowMeTheMoneyCalculator = () => {
                                 )}
 
                                 {/* Inflation - Moved Here */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm mb-4">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Inflation Assumption</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white mb-4">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-2">Inflation Assumption</h3>
                                     <div className="space-y-2">
                                         <div className="pt-2">
                                             <div className="flex justify-between items-center mb-1">
                                                 <div className="flex items-center gap-1">
-                                                    <label className="text-xs font-medium text-gray-700">Annual COLA</label>
+                                                    <label className="text-sm font-medium text-ret1re-charcoal">Annual COLA</label>
                                                     <div className="group relative">
-                                                        <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                                        <svg className="w-3.5 h-3.5 text-ret1re-warmGray cursor-help" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                                         </svg>
-                                                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50">
+                                                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-ret1re-charcoal text-white text-sm rounded shadow-lg z-50">
                                                             <div className="font-semibold mb-1">How COLA is Applied:</div>
-                                                            <ul className="space-y-1 text-xs">
+                                                            <ul className="space-y-1 text-sm">
                                                                 <li>• <span className="font-medium">Before age 60:</span> Applied annually</li>
                                                                 <li>• <span className="font-medium">Ages 60-61:</span> Frozen at 0%</li>
                                                                 <li>• <span className="font-medium">Age 62 onward:</span> Your rate applies annually</li>
@@ -3347,7 +3591,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <span className="text-xs font-semibold text-primary-600">
+                                                <span className="text-sm font-semibold text-ret1re-navy tabular-nums">
                                                     {(inflation * 100).toFixed(1)}%
                                                 </span>
                                             </div>
@@ -3358,17 +3602,17 @@ const ShowMeTheMoneyCalculator = () => {
                                                 min="0"
                                                 max="0.1"
                                                 step="0.001"
-                                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                                                className="w-full h-1 bg-ret1re-sand rounded-lg appearance-none cursor-pointer accent-ret1re-navy"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Show Me Just This Single Year - Between Spouse and Options */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-white">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Show Me Just This Single Year</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-2">Show Me Just This Single Year</h3>
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-charcoal">
                                             <input
                                                 type="checkbox"
                                                 checked={showYearView}
@@ -3379,21 +3623,21 @@ const ShowMeTheMoneyCalculator = () => {
                                                         setShowYearModal(true);
                                                     }
                                                 }}
-                                                className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                             />
                                             <span>Enable year view</span>
                                         </label>
 
                                         {showYearView && (
                                             <div>
-                                                <label className="block text-xs text-gray-600 mb-1">Select age:</label>
+                                                <label className="block text-sm text-ret1re-mid mb-1">Select age:</label>
                                                 <select
                                                     value={selectedYearAge}
                                                     onChange={(e) => {
                                                         setSelectedYearAge(Number(e.target.value));
                                                         setShowYearModal(true);
                                                     }}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                    className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                 >
                                                     {Array.from({ length: 95 - 62 + 1 }, (_, i) => 62 + i).map(age => {
                                                         // Calculate ages for both spouses if married
@@ -3421,24 +3665,24 @@ const ShowMeTheMoneyCalculator = () => {
 
                                 {/* Options - Compact (Only if Married for Premature Death) */}
                                 {isMarried && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm mt-4">
-                                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Options</h3>
+                                    <div className="border border-ret1re-sand rounded-md p-4 bg-white mt-4">
+                                        <h3 className="text-base font-bold text-ret1re-navy mb-2">Options</h3>
                                         <div className="space-y-2">
                                             <div className="space-y-2">
                                                 <Checkbox
-                                                    label={<span className="text-xs">Potential Premature Death</span>}
+                                                    label={<span className="text-sm">Potential Premature Death</span>}
                                                     checked={prematureDeath}
                                                     onChange={e => setPrematureDeath(e.target.checked)}
                                                 />
                                                 {prematureDeath && (
                                                     <div>
-                                                        <label className="block text-xs text-gray-600 mb-1">
+                                                        <label className="block text-sm text-ret1re-mid mb-1">
                                                             {isMarried ? 'Death at ages:' : 'Death at age:'}
                                                         </label>
                                                         <select
                                                             value={deathAge}
                                                             onChange={e => setDeathAge(Number(e.target.value))}
-                                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         >
                                                             {Array.from({ length: 100 - 62 + 1 }, (_, idx) => 62 + idx).map(age => {
                                                                 const primaryAge = age;
@@ -3468,154 +3712,129 @@ const ShowMeTheMoneyCalculator = () => {
                                 {/* Separator */}
                                 <div className="relative py-4">
                                     <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t-2 border-gray-300"></div>
+                                        <div className="w-full border-t border-ret1re-sand"></div>
                                     </div>
                                     <div className="relative flex justify-center">
-                                        <span className="px-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        <span className="px-3 bg-white text-xs font-bold text-ret1re-warmGray uppercase tracking-[0.12em]">
                                             Tools & Resources
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Quick Access Tools */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-gradient-to-br from-white to-gray-50 shadow-sm">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Core Features</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-3">Core Features</h3>
                                     <div className="space-y-2">
                                         {/* Featured: PIA Calculator - UPGRADED */}
-                                        <div className="p-4 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 border-2 border-teal-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🧮</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-teal-900 mb-1">PIA Calculator</h4>
-                                                    <p className="text-xs text-teal-700">Calculate your Primary Insurance Amount from your earnings record</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">PIA Calculator</h4>
+                                                    <p className="text-sm text-ret1re-mid">Calculate your Primary Insurance Amount from your earnings record</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/pia-calculator')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-3 px-4 bg-ret1re-navy hover:bg-ret1re-navyLight text-white font-bold rounded-md transition-colors"
                                             >
                                                 Refine your PIA
                                             </button>
-                                            <p className="text-xs text-teal-600 mt-2 text-center italic">
-                                                ⚡ Essential: Get your exact benefit amount
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
+                                                Essential: Get your exact benefit amount
                                             </p>
                                         </div>
 
                                         {/* Featured: One Month at a Time - MOVED UP */}
-                                        <div className="p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border-2 border-indigo-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🎯</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-indigo-900 mb-1">One Month at a Time</h4>
-                                                    <p className="text-xs text-indigo-700">See how each month of waiting builds guaranteed retirement income</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">One Month at a Time</h4>
+                                                    <p className="text-sm text-ret1re-mid">See how each month of waiting builds guaranteed retirement income</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setShowOneMonthModal(true)}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                📊 Explore Month-by-Month Value
+                                                Explore Month-by-Month Value
                                             </button>
-                                            <p className="text-xs text-indigo-600 mt-2 text-center italic">
-                                                ✨ NEW: Interactive bridge-building tool
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
+                                                NEW: Interactive bridge-building tool
                                             </p>
                                         </div>
 
                                         {/* Start-Stop-Start Strategy */}
-                                        <div className="p-4 bg-gradient-to-br from-purple-50 via-fuchsia-50 to-rose-50 border-2 border-purple-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🔄</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-purple-900 mb-1">Start-Stop-Start Strategy</h4>
-                                                    <p className="text-xs text-purple-700">File early, suspend at FRA, restart at 70 to maximize credits</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Start-Stop-Start Strategy</h4>
+                                                    <p className="text-sm text-ret1re-mid">File early, suspend at FRA, restart at 70 to maximize credits</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/start-stop-start')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                🔄 Explore Start-Stop-Start
+                                                Explore Start-Stop-Start
                                             </button>
-                                            <p className="text-xs text-purple-600 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 Compare early vs delayed claiming with suspension
                                             </p>
                                         </div>
 
                                         {/* Early/Late */}
-                                        <div className="p-4 bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-amber-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">⏳</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-amber-900 mb-1">Early/Late</h4>
-                                                    <p className="text-xs text-amber-700">Compare claiming at 62, FRA, and 70</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Early/Late</h4>
+                                                    <p className="text-sm text-ret1re-mid">Compare claiming at 62, FRA, and 70</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setChartView('earlyLate')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                ⏳ Open Early/Late View
+                                                Open Early/Late View
                                             </button>
-                                            <p className="text-xs text-amber-700 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 Quick visual comparison inside the main chart
                                             </p>
                                         </div>
 
                                         {/* Life Expectancy Reality Check */}
-                                        <div className="p-4 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">📊</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-emerald-900 mb-1">Life Expectancy</h4>
-                                                    <p className="text-xs text-emerald-700">Survival probability curves for planning</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Life Expectancy</h4>
+                                                    <p className="text-sm text-ret1re-mid">Survival probability curves for planning</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/life-expectancy')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                📊 Check Life Expectancy
+                                                Check Life Expectancy
                                             </button>
-                                            <p className="text-xs text-emerald-600 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 The longer you live, the longer you're expected to live
                                             </p>
                                         </div>
 
                                     </div>
 
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-3 mt-4">Helper Apps</h3>
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-3 mt-4">Helper Apps</h3>
                                     <div className="space-y-2">
                                         {/* Bubbles (4% Rule Equivalent) */}
                                         <button
                                             onClick={() => setChartView('bubble')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-cyan-50 to-sky-100 hover:from-cyan-100 hover:to-sky-200 border border-cyan-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-cyan-900">Bubbles</div>
-                                                    <div className="text-xs text-cyan-700 mt-0.5">4% Rule Equivalent</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Bubbles</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">4% Rule Equivalent</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-cyan-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3623,14 +3842,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Sequence of Returns */}
                                         <button
                                             onClick={() => navigate('/sequence-risk')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 border border-purple-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-purple-900">Sequence of Returns</div>
-                                                    <div className="text-xs text-purple-700 mt-0.5">Market timing impact</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Sequence of Returns</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Market timing impact</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-purple-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3639,14 +3858,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Longevity Spending */}
                                         <button
                                             onClick={() => navigate('/longevity-spending')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border border-green-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-green-900">Longevity Spending</div>
-                                                    <div className="text-xs text-green-700 mt-0.5">Plan retirement phases</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Longevity Spending</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Plan retirement phases</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-green-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3655,14 +3874,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Income Target */}
                                         <button
                                             onClick={() => navigate('/income-target')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 border border-orange-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-orange-900">Income Target</div>
-                                                    <div className="text-xs text-orange-700 mt-0.5">Set retirement goals</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Income Target</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Set retirement goals</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-orange-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3671,14 +3890,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Budget Worksheet */}
                                         <button
                                             onClick={() => navigate('/budget-worksheet')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-pink-50 to-pink-100 hover:from-pink-100 hover:to-pink-200 border border-pink-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-pink-900">Budget Worksheet</div>
-                                                    <div className="text-xs text-pink-700 mt-0.5">Track monthly expenses</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Budget Worksheet</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Track monthly expenses</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-pink-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3694,7 +3913,7 @@ const ShowMeTheMoneyCalculator = () => {
                 {sidebarCollapsed && (
                     <button
                         onClick={() => setSidebarCollapsed(false)}
-                        className="hidden lg:flex absolute top-4 left-1 p-1.5 bg-primary-600 text-white rounded-lg shadow-lg hover:bg-primary-700 transition-all hover:scale-110 z-10"
+                        className="hidden lg:flex absolute top-4 left-1 p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors z-10"
                         title="Expand controls"
                     >
                         <svg
@@ -3710,8 +3929,8 @@ const ShowMeTheMoneyCalculator = () => {
             </div>
 
             {/* Main Chart Area */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-                <div className="border-b border-gray-200 bg-white px-4 py-3">
+            <div className="flex-1 flex flex-col overflow-hidden bg-ret1re-cream">
+                <div className="border-b border-ret1re-sand bg-white px-6">
                     <div className="flex flex-wrap gap-2 items-center justify-between">
                         <PillTabs className="flex-wrap">
                             {chartTabs.filter(tab => tab.key !== 'combined' && tab.key !== 'earlyLate').map(tab => (
@@ -3721,7 +3940,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     onClick={() => setChartView(tab.key)}
                                     title={tab.tooltip || ''}
                                 >
-                                    <span className="text-xs">{tab.label}</span>
+                                    {tab.label}
                                 </PillTab>
                             ))}
                         </PillTabs>
@@ -3776,33 +3995,107 @@ const ShowMeTheMoneyCalculator = () => {
 
                 {/* Earnings Provenance Banner */}
                 <div className="px-4 pt-4">
-                    {scenario.provenance === PROVENANCE.ESTIMATED ? null : (
+                    <HouseholdWorkStopPanel
+                        primaryName={primaryFirstName}
+                        spouseName={spouseFirstName}
+                        rungs={householdWorkStopRungs}
+                    />
+
+                    {!showPiaSourceBanner ? null : (
                         <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 mb-4">
-                            {/* Claims only what is true today: the record is on file and
-                                drives the work-stop comparison. It does NOT yet feed the
-                                PIA behind the chart -- those figures still come from the
-                                entered PIA -- so the old "your plan is now based on your
-                                actual earnings history" copy was false. */}
-                            <div className="font-semibold text-emerald-900">Earnings Record On File</div>
+                            <div className="font-semibold text-emerald-900">
+                                {usingWorkshopForChart ? 'Calculated PIA On The Chart' : 'Earnings Record On File'}
+                            </div>
                             <p className="text-sm text-emerald-800 mt-1">
-                                We have {earningsRecordPhrase} saved
-                                {workStopLadder && workStopLadder.length > 0
-                                    ? ', and the work-stop comparison below is calculated from it'
-                                    : ''}.
-                                The benefit amounts in {planLabel(scenario)} still come from the PIA
-                                entered in your profile — we have not recalculated them from the
-                                earnings record yet.
+                                {scenario.provenance !== PROVENANCE.ESTIMATED && (
+                                    <>
+                                        We have {earningsRecordPhrase} saved
+                                        {(workStopLadders.spouse1 || workStopLadders.spouse2)
+                                            ? ', and the work-stop comparison below is calculated from it'
+                                            : ''}.
+                                    </>
+                                )}
+                                {usingWorkshopForChart ? (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} use the PIA you
+                                        calculated in the PIA Calculator, including the future years you set
+                                        {workshopThroughYear != null ? ` (through ${workshopThroughYear})` : ''}.
+                                    </>
+                                ) : usingEarningsForChart ? (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} come from that
+                                        record, using only years already on file (not assumed future earnings).
+                                    </>
+                                ) : (
+                                    <>
+                                        {' '}The benefit amounts in {planLabel(scenario)} currently use the
+                                        PIA you entered.
+                                    </>
+                                )}
                             </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                {(hasSpouse1Earnings || scenario.piaSource.spouse1 === 'workshop') && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (scenario.piaSource.spouse1 === 'profile') {
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'earnings' });
+                                            } else {
+                                                disableWorkshopPia('spouse1');
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse1', source: 'profile' });
+                                            }
+                                        }}
+                                        className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                                    >
+                                        {scenario.piaSource.spouse1 === 'profile'
+                                            ? `Use ${primaryFirstName}'s earnings-based PIA`
+                                            : `Use ${primaryFirstName}'s entered PIA`}
+                                    </button>
+                                )}
+                                {(hasSpouse2Earnings || scenario.piaSource.spouse2 === 'workshop') && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (scenario.piaSource.spouse2 === 'profile') {
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse2', source: 'earnings' });
+                                            } else {
+                                                disableWorkshopPia('spouse2');
+                                                dispatch({ type: 'SET_PIA_SOURCE', person: 'spouse2', source: 'profile' });
+                                            }
+                                        }}
+                                        className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                                    >
+                                        {scenario.piaSource.spouse2 === 'profile'
+                                            ? `Use ${spouseFirstName}'s earnings-based PIA`
+                                            : `Use ${spouseFirstName}'s entered PIA`}
+                                    </button>
+                                )}
+                            </div>
+                            {vintageNotes.map((note) => (
+                                <p key={note.kind + note.person} className="text-sm text-amber-800 mt-2">
+                                    {note.message}
+                                </p>
+                            ))}
+                            {birthYearConflicts.map((note) => (
+                                <p key={note.person} className="text-sm text-amber-800 mt-2">
+                                    {note.message}
+                                </p>
+                            ))}
                         </div>
                     )}
 
-                    {workStopLadder && workStopLadder.length > 0 && (
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 mb-4">
-                            <div className="font-semibold text-slate-900 mb-2">What if you stop working at…</div>
+                    {ladderPeople.map(({ person, label, rungs, record }) => (
+                        <div key={person} className="rounded-lg border border-slate-200 bg-white px-4 py-3 mb-4">
+                            <div className="font-semibold text-slate-900 mb-1">
+                                What if {label} stop working at…
+                            </div>
+                            <p className="text-xs text-slate-500 mb-2">
+                                These figures are the PIA if work stops at that age — not the benefit if you file then.
+                            </p>
                             <div className="grid grid-cols-4 gap-3">
-                                {workStopLadder.map((rung) => (
+                                {rungs.map((rung) => (
                                     <div key={rung.stopAge} className="text-center">
-                                        <div className="text-xs uppercase tracking-wide text-slate-500">Age {rung.stopAge}</div>
+                                        <div className="text-xs uppercase tracking-wide text-slate-500">Stop at {rung.stopAge}</div>
                                         <div className="text-lg font-semibold text-slate-900">
                                             ${Math.round(rung.pia).toLocaleString()}
                                         </div>
@@ -3810,21 +4103,16 @@ const ShowMeTheMoneyCalculator = () => {
                                     </div>
                                 ))}
                             </div>
-                            {/* Only claim "35 strong years" when the record proves it.
-                                Equal PIAs alone do not: someone with 15 zero years in
-                                their top 35 can produce a flat ladder, and telling them
-                                working longer barely matters is the opposite of the truth.
-                                If the record cannot settle it, say nothing. */}
-                            {workStopLadder.length > 1 &&
-                                workStopLadder[0].pia === workStopLadder[workStopLadder.length - 1].pia &&
-                                hasThirtyFiveNonZeroYears(scenario.earnings.spouse1) && (
+                            {rungs.length > 1 &&
+                                rungs[0].pia === rungs[rungs.length - 1].pia &&
+                                hasThirtyFiveNonZeroYears(record) && (
                                 <p className="text-sm text-emerald-700 mt-3">
-                                    Good news — you already have 35 strong earnings years. Working longer has
-                                    very little effect on your Social Security calculation.
+                                    Good news — {label} already has 35 strong earnings years. Working longer
+                                    has very little effect on this Social Security calculation.
                                 </p>
                             )}
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 {/* Chart Container */}
@@ -4036,7 +4324,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                                     <>
                                                                         {/* Filing at 70 - Top */}
                                                                         <div className="flex flex-col items-center">
-                                                                            <h4 className="text-xl font-semibold text-green-600 mb-6">Filing at Age 70</h4>
+                                                                            <h4 className="text-xl font-semibold mb-6" style={{ color: SCENARIO_INK.age70 }}>Filing at Age 70</h4>
                                                                             <div className="relative w-full h-80 flex items-center justify-center">
                                                                                 {/* Monthly bubble - Left */}
                                                                                 <div
@@ -4047,8 +4335,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '20%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(74, 222, 128, 0.9), rgba(34, 197, 94, 0.7))',
-                                                                                        boxShadow: '0 8px 32px rgba(34, 197, 94, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.55),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4066,8 +4354,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '50%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(134, 239, 172, 0.85), rgba(74, 222, 128, 0.65))',
-                                                                                        boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.35),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4085,8 +4373,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '80%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(187, 247, 208, 0.8), rgba(134, 239, 172, 0.6))',
-                                                                                        boxShadow: '0 8px 32px rgba(134, 239, 172, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.18),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4105,7 +4393,7 @@ const ShowMeTheMoneyCalculator = () => {
 
                                                                         {/* Filing at 62 - Bottom */}
                                                                         <div className="flex flex-col items-center">
-                                                                            <h4 className="text-xl font-semibold text-red-600 mb-6">Filing at Age 62</h4>
+                                                                            <h4 className="text-xl font-semibold mb-6" style={{ color: SCENARIO_INK.age62 }}>Filing at Age 62</h4>
                                                                             <div className="relative w-full h-80 flex items-center justify-center">
                                                                                 {/* Monthly bubble - Left */}
                                                                                 <div
@@ -4116,8 +4404,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '20%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(248, 113, 113, 0.9), rgba(239, 68, 68, 0.7))',
-                                                                                        boxShadow: '0 8px 32px rgba(239, 68, 68, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.55),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4135,8 +4423,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '50%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(252, 165, 165, 0.85), rgba(248, 113, 113, 0.65))',
-                                                                                        boxShadow: '0 8px 32px rgba(248, 113, 113, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.35),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4154,8 +4442,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '80%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(254, 202, 202, 0.8), rgba(252, 165, 165, 0.6))',
-                                                                                        boxShadow: '0 8px 32px rgba(252, 165, 165, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.18),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4198,8 +4486,8 @@ const ShowMeTheMoneyCalculator = () => {
                                         spouseLabel={spouseFirstName}
                                         spouse1Dob={spouse1Dob}
                                         spouse2Dob={spouse2Dob}
-                                        spouse1Pia={spouse1Pia}
-                                        spouse2Pia={spouse2Pia}
+                                        spouse1Pia={chartSpouse1Pia}
+                                        spouse2Pia={chartSpouse2Pia}
                                         spouse1PreferredYear={spouse1PreferredYear}
                                         spouse2PreferredYear={spouse2PreferredYear}
                                         inflation={inflation}
@@ -4227,6 +4515,8 @@ const ShowMeTheMoneyCalculator = () => {
                                             setSelectedYearAge(year - primaryBirthYear);
                                             setShowYearModal(true);
                                         }}
+                                        longevitySummary={longevitySummary}
+                                        onPersonalizeClick={() => navigate('/life-expectancy')}
                                     />
                                 </div>
                             ) : (
@@ -4535,9 +4825,9 @@ const ShowMeTheMoneyCalculator = () => {
                                         }
                                         return getHouseholdBucket({
                                             filingAge,
-                                            spouse1Pia,
+                                            spouse1Pia: chartSpouse1Pia,
                                             spouse1Dob,
-                                            spouse2Pia,
+                                            spouse2Pia: chartSpouse2Pia,
                                             spouse2Dob,
                                             inflation,
                                             prematureDeath,
@@ -4574,8 +4864,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     const strategies = [
                                         {
                                             name: 'File at 70',
-                                            color: 'green',
-                                            gradient: 'from-green-500 to-green-600',
+                                            color: SCENARIO_INK.age70,
                                             monthly: projections.age70.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling(70, projections.age70),
                                             cumulativeSince70: cumulativeSince70(projections.age70),
@@ -4585,8 +4874,7 @@ const ShowMeTheMoneyCalculator = () => {
                                         },
                                         {
                                             name: 'File at 67',
-                                            color: 'blue',
-                                            gradient: 'from-blue-500 to-blue-600',
+                                            color: SCENARIO_INK.preferred,
                                             monthly: projections.preferred.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling('preferred', projections.preferred),
                                             cumulativeSince70: cumulativeSince70(projections.preferred),
@@ -4596,8 +4884,7 @@ const ShowMeTheMoneyCalculator = () => {
                                         },
                                         {
                                             name: 'File at 62',
-                                            color: 'red',
-                                            gradient: 'from-red-500 to-red-600',
+                                            color: SCENARIO_INK.age62,
                                             monthly: projections.age62.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling(62, projections.age62),
                                             cumulativeSince70: cumulativeSince70(projections.age62),
@@ -4645,7 +4932,7 @@ const ShowMeTheMoneyCalculator = () => {
 
                                                 {/* Header */}
                                                 <div className="text-center mb-4">
-                                                    <div className={`text-lg font-bold bg-gradient-to-r ${strategy.gradient} text-transparent bg-clip-text`}>
+                                                    <div className="text-lg font-bold" style={{ color: strategy.color }}>
                                                         {strategy.name}
                                                     </div>
                                                 </div>
@@ -4674,7 +4961,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                             Monthly
                                                         </p>
-                                                        <p className={`text-2xl font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                        <p className={`text-2xl font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                             {strategy.started ? currencyFormatter.format(Math.round(strategy.monthly)) : '$0'}
                                                         </p>
                                                     </div>
@@ -4684,7 +4971,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                             Annual
                                                         </p>
-                                                        <p className={`text-xl font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                        <p className={`text-xl font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                             {strategy.started ? currencyFormatter.format(Math.round(annual)) : '$0'}
                                                         </p>
                                                         {strategy.started && monthsPaid > 0 && (
@@ -4705,7 +4992,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                                 Cumulative Since Filing
                                                             </p>
-                                                            <p className={`text-lg font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                            <p className={`text-lg font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                                 {currencyFormatter.format(Math.round(strategy.cumulative))}
                                                             </p>
                                                         </div>
@@ -4718,7 +5005,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                                 Cumulative Since 70
                                                             </p>
-                                                            <p className={`text-lg font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                            <p className={`text-lg font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                                 {currencyFormatter.format(Math.round(strategy.cumulativeSince70))}
                                                             </p>
                                                         </div>
@@ -5061,11 +5348,11 @@ const ShowMeTheMoneyCalculator = () => {
             <OneMonthAtATimeModal
                 isOpen={showOneMonthModal}
                 onClose={() => setShowOneMonthModal(false)}
-                pia={spouse1Pia || 3571}
+                pia={chartSpouse1Pia || 3571}
                 dob={spouse1Dob}
                 inflationRate={inflation}
                 isMarried={isMarried}
-                spousePia={(isMarried && spouse2Pia) || 2857}
+                spousePia={(isMarried && chartSpouse2Pia) || 2857}
                 spouseDob={spouse2Dob}
             />
         </div >

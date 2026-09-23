@@ -50,7 +50,7 @@ Reduction and DRC factors are deterministic (`benefitFormulas.js:56-70`): 5/9 of
 
 ## 1. One inflation rate for the entire span (deliberate)
 
-`inflation` (default 2.5%) is applied uniformly across every projected year — pre-claim COLA, post-claim COLA, and the whole horizon out to age 95.
+`inflation` (default 2.5%) is applied uniformly across every projected year — pre-claim COLA, post-claim COLA, and the whole horizon. Our Lifelong Timeline extends that horizon through the latest displayed longevity threshold (`longevitySummary.axisEndYear`). Other calculator views keep the default `birthYear + 95` unless they pass an explicit `endYear`. See `docs/MORTALITY-DATA-LINEAGE.md`.
 
 Real COLAs are nothing like uniform: 2021 was 1.3%, 2022 was 5.9%, 2023 was 8.7%, 2024 was 3.2%. Any single rate is wrong in every individual year.
 
@@ -93,7 +93,7 @@ Every one of these **fails silently**. That is the real problem — not that we 
 ## 4. Behavioral assumptions we impose
 
 - **Carry-forward earnings.** Projected years assume the most recent year's amount continues. Matches SSA's own convention, but a trailing employment gap makes it resurrect an older salary.
-- **Longevity.** `projections.js:50` runs to `birthYear + 95`. `useBenefitCalculations.js:128` hardcodes "assuming life expectancy of 85 years" for cumulative-gain math — **two different horizons in one product.** Reconcile.
+- **Longevity.** Show Me the Money's timeline projections use the shared SSA longevity summary's `axisEndYear`. `calculateProjection()` still defaults to `birthYear + 95` for callers that omit `endYear`. `useBenefitCalculations.js` still hardcodes "assuming life expectancy of 85 years" for cumulative-gain math — those two remaining horizons are not the timeline. See `docs/MORTALITY-DATA-LINEAGE.md`.
 - **Premature death** defaults to age 75 when toggled.
 - **Continuous employment** to the chosen stop age, with no modeled interruption.
 

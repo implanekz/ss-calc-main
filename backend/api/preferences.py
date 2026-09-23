@@ -103,7 +103,7 @@ async def update_preferences(request: Request):
                 update_data[db_key] = data[frontend_key]
         
         # Calculator state fields (stored in calculator_states JSONB)
-        calculator_state_keys = ['showMeTheMoney', 'pia', 'divorced', 'widow']
+        calculator_state_keys = ['showMeTheMoney', 'pia', 'divorced', 'widow', 'lifeExpectancy']
         calculator_states_update = {}
         
         for key in calculator_state_keys:

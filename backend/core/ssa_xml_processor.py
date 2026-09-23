@@ -96,6 +96,8 @@ class SSAXMLProcessor:
         self.statement_date = statement_date or date.today()
         # Calculate indexing year (year person turns 60)
         self.indexing_year = birth_year + 60 if birth_year else datetime.now().year - 2
+        # True when AWI for the indexing year is unpublished and we used the latest
+        self.awi_approximated = False
         
     def parse_ssa_xml(self, xml_content: str) -> Dict:
         """
@@ -225,35 +227,37 @@ class SSAXMLProcessor:
 
         indexed_earnings = []
         indexing_awi = self.AVERAGE_WAGE_INDEX.get(indexing_year)
+        self.awi_approximated = indexing_awi is None
 
         if not indexing_awi:
-            # If indexing year not in table, use most recent or estimate
+            # AWI for year N is published in the fall of N+1. Use the latest
+            # published value and surface the approximation to the caller.
             indexing_awi = max(self.AVERAGE_WAGE_INDEX.values())
 
         for record in self.earnings_history:
-            # Don't index earnings at age 60 or later (use actual amounts)
-            if record.year >= indexing_year:
-                indexed_amount = record.earnings
-                indexing_factor = 1.0
-            else:
-                year_awi = self.AVERAGE_WAGE_INDEX.get(record.year)
-                if year_awi and year_awi > 0:
-                    indexing_factor = indexing_awi / year_awi
-                    indexed_amount = record.earnings * indexing_factor
-                else:
-                    # If AWI not available for that year, don't index
-                    indexed_amount = record.earnings
-                    indexing_factor = 1.0
-
-            # Cap at maximum taxable earnings for that year (applied AFTER indexing)
-            # Use latest published taxable maximum for future years
+            # Cap nominal (taxed) earnings first. Indexed dollars are a different
+            # unit and must never be compared to that year's taxable maximum.
             if record.year in self.TAXABLE_MAXIMUM:
                 max_earnings = self.TAXABLE_MAXIMUM[record.year]
             else:
                 latest_year = max(self.TAXABLE_MAXIMUM.keys())
                 max_earnings = self.TAXABLE_MAXIMUM[latest_year]
-            is_capped = indexed_amount >= max_earnings
-            indexed_amount = min(indexed_amount, max_earnings)
+            is_capped = record.earnings >= max_earnings
+            capped_nominal = min(record.earnings, max_earnings)
+
+            # Don't index earnings at age 60 or later (use actual amounts)
+            if record.year >= indexing_year:
+                indexed_amount = capped_nominal
+                indexing_factor = 1.0
+            else:
+                year_awi = self.AVERAGE_WAGE_INDEX.get(record.year)
+                if year_awi and year_awi > 0:
+                    indexing_factor = indexing_awi / year_awi
+                    indexed_amount = capped_nominal * indexing_factor
+                else:
+                    # If AWI not available for that year, don't index
+                    indexed_amount = capped_nominal
+                    indexing_factor = 1.0
 
             indexed_earnings.append({
                 'year': record.year,
@@ -267,23 +271,6 @@ class SSAXMLProcessor:
 
         self.indexed_earnings = indexed_earnings
         return indexed_earnings
-    
-    def calculate_aime_and_pia(self, pia_year: Optional[int] = None) -> Dict:
-        """
-        Calculate AIME (Average Indexed Monthly Earnings) and PIA (Primary Insurance Amount)
-
-        Args:
-            pia_year: Year to use for bend points (typically year person turns 62)
-                     If not provided, uses current year or birth_year + 62
-        """
-        if not self.indexed_earnings:
-            self.calculate_indexed_earnings()
-
-        # Determine PIA calculation year (year person turns 62, or current year)
-        if pia_year is None:
-            pia_year = self.birth_year + 62 if self.birth_year else datetime.now().year
-
-        return self._calculate_pia_structure(aime, pia, pia_year, bend_points, first_bracket_pia, second_bracket_pia, third_bracket_pia)
 
     def _calculate_pia_structure(self, aime, pia, pia_year, bend_points, b1, b2, b3):
         """Helper to format PIA response structure"""
@@ -301,7 +288,8 @@ class SSAXMLProcessor:
                 'second_bracket': round(b2, 2),
                 'third_bracket': round(b3, 2),
                 'total_pia': round(pia, 2)
-            }
+            },
+            'awi_approximated': self.awi_approximated
         }
 
     def _calculate_pia_components(self, aime: float, year: int) -> Tuple[float, List[int], float, float, float]:
