@@ -122,7 +122,10 @@ const LifeExpectancyCalculator = ({ asOfDate: asOfDateProp } = {}) => {
     const { preferences, updatePreferences, user, profile: realProfile, partners: realPartners } = useUser();
     const { isDevMode, devProfile, devPartners } = useDevMode();
     const profile = isDevMode ? devProfile : realProfile;
-    const partners = isDevMode ? (devPartners || []) : (realPartners || []);
+    const partners = useMemo(
+        () => (isDevMode ? (devPartners || []) : (realPartners || [])),
+        [isDevMode, devPartners, realPartners]
+    );
 
     const primaryPersonId = resolvePersonId(profile, user?.id) || (profile || user ? 'primary' : null);
     const partnerPersonId = resolvePersonId(partners?.[0], hasPartnerBirthDate(partners) ? 'partner' : null);
