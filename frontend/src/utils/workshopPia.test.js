@@ -1,4 +1,5 @@
 import { projectedThroughYear, readWorkshopPia, stashWorkshopPia, disableWorkshopPia } from './workshopPia';
+import * as workshopPia from './workshopPia';
 
 describe('projectedThroughYear', () => {
   it('returns the latest projected year', () => {
@@ -38,5 +39,25 @@ describe('workshop PIA stash', () => {
   it('ignores unknown person keys', () => {
     stashWorkshopPia('cousin', { pia: 1, enabled: true });
     expect(readWorkshopPia()).toEqual({ spouse1: null, spouse2: null });
+  });
+});
+
+describe('workshop PIA hydration', () => {
+  it('returns an explicit disable action so an unchecked workshop PIA restores the entered source', () => {
+    expect(workshopPia.workshopPiaHydrationAction?.('spouse1', {
+      pia: 2140,
+      throughYear: 2025,
+      enabled: false
+    })).toEqual({
+      type: 'SET_WORKSHOP_PIA',
+      person: 'spouse1',
+      pia: 2140,
+      throughYear: 2025,
+      enabled: false
+    });
+  });
+
+  it('does nothing when that person has never adopted a workshop PIA', () => {
+    expect(workshopPia.workshopPiaHydrationAction?.('spouse2', null)).toBeNull();
   });
 });

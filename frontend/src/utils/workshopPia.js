@@ -40,3 +40,14 @@ export function disableWorkshopPia(person) {
   if (!current) return;
   stashWorkshopPia(person, { ...current, enabled: false });
 }
+
+export function workshopPiaHydrationAction(person, adoption) {
+  if (!adoption) return null;
+  return {
+    type: 'SET_WORKSHOP_PIA',
+    person,
+    pia: adoption.pia,
+    throughYear: adoption.throughYear,
+    enabled: Boolean(adoption.enabled)
+  };
+}

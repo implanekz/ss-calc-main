@@ -205,6 +205,36 @@ export const hasThirtyFiveNonZeroYears = (record) => {
   return banked.length >= 35;
 };
 
+export const combineHouseholdWorkStopLadders = (ladders = {}) => {
+  const spouse2ByAge = new Map(
+    (ladders.spouse2 || []).map((rung) => [rung.stopAge, rung])
+  );
+
+  return (ladders.spouse1 || []).flatMap((spouse1Rung) => {
+    const spouse2Rung = spouse2ByAge.get(spouse1Rung.stopAge);
+    if (!spouse2Rung) return [];
+
+    const spouse1Pia = Number(spouse1Rung.pia);
+    const spouse2Pia = Number(spouse2Rung.pia);
+    if (!Number.isFinite(spouse1Pia) || !Number.isFinite(spouse2Pia)) return [];
+
+    return [{
+      stopAge: spouse1Rung.stopAge,
+      spouse1Pia,
+      spouse2Pia,
+      householdPia: spouse1Pia + spouse2Pia
+    }];
+  });
+};
+
+export const householdWorkStopRungsForRelationship = (relationshipStatus, ladders) =>
+  relationshipStatus === 'married'
+    ? combineHouseholdWorkStopLadders(ladders)
+    : [];
+
+export const resolveEnteredPia = (profilePia, persistedPia) =>
+  profilePia ?? persistedPia ?? '';
+
 // UNRESOLVED — settle this before wiring the scenario-comparison chart.
 // This reads the LIVE `inflation` field, but each scenario also carries a FROZEN
 // `assumptions.colaRate` captured at creation. They diverge as soon as the COLA
@@ -232,6 +262,19 @@ export const effectivePia = (scenario, person) => {
     return scenario.derivedPia[person];
   }
   return typed;
+};
+
+export const piaFieldView = (scenario, person) => {
+  const source = scenario.piaSource?.[person];
+  const hasSourceValue = (
+    (source === 'workshop' && scenario.workshopPia?.[person] != null) ||
+    (source === 'earnings' && scenario.derivedPia?.[person] != null)
+  );
+
+  return {
+    value: effectivePia(scenario, person),
+    readOnly: hasSourceValue
+  };
 };
 
 // Frozen colaRate is authoritative. Live inflation can drift after the slider

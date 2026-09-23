@@ -11,6 +11,7 @@ import {
   planLabel,
   effectivePia
 } from './scenario';
+import * as scenarioModel from './scenario';
 
 describe('createScenario', () => {
   it('applies documented defaults', () => {
@@ -300,6 +301,109 @@ describe('effectivePia', () => {
     });
     expect(s.piaSource.spouse1).toBe('workshop');
     expect(effectivePia(s, 'spouse1')).toBe(2140);
+  });
+});
+
+describe('PIA field presentation', () => {
+  it('shows the adopted earnings PIA as read-only without replacing the entered PIA', () => {
+    let s = createScenario({ spouse1Pia: 2500 });
+    s = scenarioReducer(s, {
+      type: 'SET_EARNINGS',
+      person: 'spouse1',
+      record: { birthYear: 1966, rows: [] }
+    });
+    s = scenarioReducer(s, {
+      type: 'SET_DERIVED_PIA',
+      person: 'spouse1',
+      pia: 3182
+    });
+
+    expect(scenarioModel.piaFieldView?.(s, 'spouse1')).toEqual({
+      value: 3182,
+      readOnly: true
+    });
+    expect(s.spouse1Pia).toBe(2500);
+  });
+
+  it('shows the original entered PIA as editable after switching back', () => {
+    let s = createScenario({ spouse2Pia: 1700 });
+    s = scenarioReducer(s, {
+      type: 'SET_WORKSHOP_PIA',
+      person: 'spouse2',
+      pia: 2050,
+      enabled: true
+    });
+    s = scenarioReducer(s, {
+      type: 'SET_PIA_SOURCE',
+      person: 'spouse2',
+      source: 'profile'
+    });
+
+    expect(scenarioModel.piaFieldView?.(s, 'spouse2')).toEqual({
+      value: 1700,
+      readOnly: false
+    });
+  });
+});
+
+describe('resolveEnteredPia', () => {
+  it('falls back to the calculator-saved typed value when the profile has none', () => {
+    expect(scenarioModel.resolveEnteredPia?.(undefined, 2500)).toBe(2500);
+    expect(scenarioModel.resolveEnteredPia?.(null, 2500)).toBe(2500);
+  });
+
+  it('keeps a profile value authoritative, including zero', () => {
+    expect(scenarioModel.resolveEnteredPia?.(2600, 2500)).toBe(2600);
+    expect(scenarioModel.resolveEnteredPia?.(0, 2500)).toBe(0);
+  });
+});
+
+describe('combineHouseholdWorkStopLadders', () => {
+  it('combines matching stop ages while retaining each spouse amount', () => {
+    const combined = scenarioModel.combineHouseholdWorkStopLadders?.({
+      spouse1: [
+        { stopAge: 62, pia: 3000 },
+        { stopAge: 67, pia: 3300 }
+      ],
+      spouse2: [
+        { stopAge: 62, pia: 1800 },
+        { stopAge: 67, pia: 2100 }
+      ]
+    });
+
+    expect(combined).toEqual([
+      { stopAge: 62, spouse1Pia: 3000, spouse2Pia: 1800, householdPia: 4800 },
+      { stopAge: 67, spouse1Pia: 3300, spouse2Pia: 2100, householdPia: 5400 }
+    ]);
+  });
+
+  it('omits stop ages that are not present for both spouses', () => {
+    const combined = scenarioModel.combineHouseholdWorkStopLadders?.({
+      spouse1: [{ stopAge: 62, pia: 3000 }, { stopAge: 67, pia: 3300 }],
+      spouse2: [{ stopAge: 67, pia: 2100 }]
+    });
+
+    expect(combined).toEqual([
+      { stopAge: 67, spouse1Pia: 3300, spouse2Pia: 2100, householdPia: 5400 }
+    ]);
+  });
+});
+
+describe('householdWorkStopRungsForRelationship', () => {
+  const ladders = {
+    spouse1: [{ stopAge: 62, pia: 3000 }],
+    spouse2: [{ stopAge: 62, pia: 1800 }]
+  };
+
+  it('builds a household view for a current marriage', () => {
+    expect(scenarioModel.householdWorkStopRungsForRelationship?.('married', ladders)).toEqual([
+      { stopAge: 62, spouse1Pia: 3000, spouse2Pia: 1800, householdPia: 4800 }
+    ]);
+  });
+
+  it('does not expose a household total for divorced or widowed profiles', () => {
+    expect(scenarioModel.householdWorkStopRungsForRelationship?.('divorced', ladders)).toEqual([]);
+    expect(scenarioModel.householdWorkStopRungsForRelationship?.('widowed', ladders)).toEqual([]);
   });
 });
 
