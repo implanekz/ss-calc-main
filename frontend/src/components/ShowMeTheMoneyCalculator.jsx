@@ -4640,33 +4640,25 @@ const ShowMeTheMoneyCalculator = () => {
                             <div className="mb-6">
                                 <h3 className="text-xl font-semibold text-primary-600 mb-3">How to Find Your PIA</h3>
                                 <p className="text-gray-700 mb-3">
-                                    You can get your specific benefit estimate at{' '}
+                                    Social Security rarely uses the term &ldquo;PIA&rdquo; on your statement. Look for the chart called{' '}
+                                    <strong>&ldquo;Personalized Monthly Retirement Benefit Estimates.&rdquo;</strong>{' '}
+                                    The amount next to <strong>67</strong>, your full retirement age, is your PIA. Enter that number here.
+                                </p>
+                                <p className="text-gray-700 mb-3">
+                                    Get your statement by logging in to your <em>my Social Security</em> account at{' '}
                                     <a
-                                        href="https://www.ssa.gov"
+                                        href="https://www.ssa.gov/myaccount/"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-primary-600 hover:text-primary-700 underline font-medium"
                                     >
                                         SSA.gov
-                                    </a>{' '}
-                                    by creating a "my Social Security" account.
+                                    </a>.
                                 </p>
-
-                                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                                    <div className="flex">
-                                        <div className="flex-shrink-0">
-                                            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-sm font-semibold text-gray-900">Don't know your number?</p>
-                                            <p className="text-sm text-gray-700 mt-1">
-                                                The average individual Social Security benefit in 2025 is $2,006/month. Use this as a starting point, then get your actual estimate from SSA.gov for more accurate planning.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
+                                <p className="text-sm text-gray-600 italic">
+                                    One note: that estimate assumes you keep working at your current pay until you file.
+                                    If you&rsquo;ve already stopped working, your actual PIA may be a little lower.
+                                </p>
                             </div>
 
                             {/* What is FRA? - MOVED TO BOTTOM */}
