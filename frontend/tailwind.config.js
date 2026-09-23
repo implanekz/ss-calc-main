@@ -45,9 +45,24 @@ module.exports = {
           900: '#7c2d12',
           950: '#431407',
         },
+        // Ret1re.com brand tokens (see ret1re-design skill / navigatorColors.js)
+        ret1re: {
+          navy: '#10467A',
+          navyLight: '#1A5C9E',
+          navyTint: '#E8EFF7',
+          red: '#D50024',
+          cream: '#FAF7F2',
+          sandDeep: '#F2EDE4',
+          sand: '#E6DDD0',
+          sandDark: '#C8BBAB',
+          warmGray: '#8C8278',
+          mid: '#4E4743',
+          charcoal: '#2D3748',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
       },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',

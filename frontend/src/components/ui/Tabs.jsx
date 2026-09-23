@@ -47,9 +47,10 @@ export const TabPanel = ({ active = false, children, className = '' }) => {
   );
 };
 
+// Editorial underline tabs (Ret1re brand): navy label with a red underline when active.
 export const PillTabs = ({ children, className = '' }) => {
   return (
-    <div className={`flex gap-2 flex-wrap ${className}`}>
+    <div role="tablist" className={`flex gap-x-7 gap-y-1 ${className}`}>
       {children}
     </div>
   );
@@ -61,11 +62,11 @@ export const PillTab = ({ active = false, children, className = '', ...props }) 
       role="tab"
       aria-selected={active}
       className={`
-        px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap
-        transition-all duration-200
+        py-3 font-bold text-[15px] whitespace-nowrap
+        transition-colors duration-200
         ${active
-          ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-500/30'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ? 'text-ret1re-navy shadow-[inset_0_-3px_0_0_#D50024]'
+          : 'text-ret1re-warmGray hover:text-ret1re-charcoal'
         }
         ${className}
       `}

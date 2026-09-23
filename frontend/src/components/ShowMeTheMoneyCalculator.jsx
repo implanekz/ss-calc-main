@@ -3323,20 +3323,20 @@ const ShowMeTheMoneyCalculator = () => {
     return (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] overflow-hidden">
             {/* Compact Sidebar */}
-            <div className={`relative bg-white border-r border-gray-200 transition-all duration-300 ${sidebarCollapsed ? 'w-0 lg:w-12' : 'lg:w-80 xl:w-96'
+            <div className={`relative bg-white border-r border-ret1re-sand transition-all duration-300 ${sidebarCollapsed ? 'w-0 lg:w-12' : 'lg:w-80 xl:w-96'
                 }`}>
                 <div className={`h-full ${sidebarCollapsed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                     {!sidebarCollapsed && (
                         <div>
-                            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50 flex justify-between items-start">
+                            <div className="px-5 py-4 border-b border-ret1re-sand bg-ret1re-cream flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-lg font-bold text-gray-900">Controls</h2>
-                                    <p className="text-xs text-gray-600">Adjust your inputs</p>
+                                    <h2 className="font-display text-[28px] leading-none font-bold text-ret1re-navy">Controls</h2>
+                                    <p className="text-sm text-ret1re-warmGray mt-1">Adjust your inputs</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => navigate('/settings')}
-                                        className="p-1.5 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition-all hover:scale-110"
+                                        className="p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors"
                                         title="Settings"
                                     >
                                         <svg
@@ -3351,7 +3351,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     </button>
                                     <button
                                         onClick={() => setSidebarCollapsed(true)}
-                                        className="hidden lg:flex p-1.5 bg-primary-600 text-white rounded-lg shadow-md hover:bg-primary-700 transition-all hover:scale-110"
+                                        className="hidden lg:flex p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors"
                                         title="Collapse controls"
                                     >
                                         <svg
@@ -3368,9 +3368,9 @@ const ShowMeTheMoneyCalculator = () => {
 
                             <div className="p-4 space-y-4">
                                 {/* Primary Filer - Compact */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
                                     <div className="mb-2">
-                                        <h3 className="text-sm font-semibold text-gray-900">{(() => {
+                                        <h3 className="text-base font-bold text-ret1re-navy">{(() => {
                                             const name = (profile?.firstName && profile?.lastName)
                                                 ? `${profile.firstName} ${profile.lastName}`
                                                 : (profile?.first_name && profile?.last_name)
@@ -3378,16 +3378,16 @@ const ShowMeTheMoneyCalculator = () => {
                                                     : 'Primary Filer';
                                             return name;
                                         })()}</h3>
-                                        <p className="text-xs text-gray-600">DOB: {spouse1Dob} • Age: {formatAge(spouse1Dob)}</p>
+                                        <p className="text-sm text-ret1re-mid">DOB: {spouse1Dob} • Age: {formatAge(spouse1Dob)}</p>
                                     </div>
                                     <div className="space-y-2">
                                         <div>
-                                            <div className="mb-1 flex items-center gap-1 text-xs text-gray-600">
+                                            <div className="mb-1 flex items-center gap-1 text-sm text-ret1re-mid">
                                                 <label htmlFor="spouse1-pia">Enter Your PIA ($)</label>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPiaFraModal(true)}
-                                                    className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                    className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                 >
                                                     What's This?
                                                 </button>
@@ -3400,15 +3400,15 @@ const ShowMeTheMoneyCalculator = () => {
                                                 onBlur={handlePiaBlur}
                                                 readOnly={spouse1PiaField.readOnly}
                                                 aria-describedby={spouse1PiaField.readOnly ? 'spouse1-pia-source' : undefined}
-                                                className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
+                                                className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-ret1re-navy/20 focus:border-ret1re-navy ${
                                                     spouse1PiaField.readOnly
-                                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                                                        : 'border-gray-300'
+                                                        ? 'border-ret1re-navy/30 bg-ret1re-navyTint text-ret1re-navy'
+                                                        : 'border-ret1re-sand'
                                                 }`}
                                                 placeholder="Insert PIA here"
                                             />
                                             {spouse1PiaField.readOnly && (
-                                                <p id="spouse1-pia-source" className="mt-1 text-xs text-emerald-700">
+                                                <p id="spouse1-pia-source" className="mt-1 text-sm text-ret1re-navy">
                                                     {scenario.piaSource.spouse1 === 'workshop'
                                                         ? 'PIA Calculator value currently driving the chart.'
                                                         : 'Earnings-record value currently driving the chart.'}
@@ -3416,13 +3416,13 @@ const ShowMeTheMoneyCalculator = () => {
                                             )}
                                         </div>
 
-                                        <div className="bg-primary-100 rounded p-2">
-                                            <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                        <div className="bg-ret1re-navyTint rounded-md p-3">
+                                            <label className="block text-sm font-medium text-ret1re-charcoal mb-1 flex items-center gap-1">
                                                 Preferred Filing Age
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPreferredFilingModal(true)}
-                                                    className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                    className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                 >
                                                     What's This?
                                                 </button>
@@ -3434,7 +3434,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         value={spouse1PreferredYear}
                                                         onChange={e => setSpouse1PreferredYear(Number(e.target.value))}
                                                         onBlur={handleSpouse1AgeBlur}
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                        className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         placeholder="Yr"
                                                     />
                                                 </div>
@@ -3444,7 +3444,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         value={spouse1PreferredMonth}
                                                         onChange={e => setSpouse1PreferredMonth(Number(e.target.value))}
                                                         onBlur={handleSpouse1AgeBlur}
-                                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                        className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         placeholder="Mo"
                                                     />
                                                 </div>
@@ -3452,13 +3452,13 @@ const ShowMeTheMoneyCalculator = () => {
                                         </div>
 
                                         {/* View Only Checkbox - At Bottom */}
-                                        <div className="pt-3 mt-3 border-t border-gray-200">
-                                            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+                                        <div className="pt-3 mt-3 border-t border-ret1re-sand">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-mid hover:text-ret1re-charcoal">
                                                 <input
                                                     type="checkbox"
                                                     checked={activeRecordView === 'primary'}
                                                     onChange={handlePrimaryOnlyToggle}
-                                                    className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                    className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                                 />
                                                 <span title="This setting can also be changed in the Settings section">Show only this person</span>
                                             </label>
@@ -3468,9 +3468,9 @@ const ShowMeTheMoneyCalculator = () => {
 
                                 {/* Spouse - Compact - Always visible when married */}
                                 {isMarried && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                    <div className="border border-ret1re-sand rounded-md p-4 bg-white">
                                         <div className="mb-2">
-                                            <h3 className="text-sm font-semibold text-gray-900">{(() => {
+                                            <h3 className="text-base font-bold text-ret1re-navy">{(() => {
                                                 const sp = partners && partners.length > 0 ? partners[0] : null;
                                                 const name = sp && (sp.firstName && sp.lastName)
                                                     ? `${sp.firstName} ${sp.lastName}`
@@ -3479,16 +3479,16 @@ const ShowMeTheMoneyCalculator = () => {
                                                         : 'Spouse Filer';
                                                 return name;
                                             })()}</h3>
-                                            <p className="text-xs text-gray-600">DOB: {spouse2Dob} • Age: {formatAge(spouse2Dob)}</p>
+                                            <p className="text-sm text-ret1re-mid">DOB: {spouse2Dob} • Age: {formatAge(spouse2Dob)}</p>
                                         </div>
                                         <div className="space-y-2">
                                             <div>
-                                                <div className="mb-1 flex items-center gap-1 text-xs text-gray-600">
+                                                <div className="mb-1 flex items-center gap-1 text-sm text-ret1re-mid">
                                                     <label htmlFor="spouse2-pia">Enter Your PIA ($)</label>
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPiaFraModal(true)}
-                                                        className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                        className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                     >
                                                         What's This?
                                                     </button>
@@ -3501,15 +3501,15 @@ const ShowMeTheMoneyCalculator = () => {
                                                     onBlur={handleSpousePiaBlur}
                                                     readOnly={spouse2PiaField.readOnly}
                                                     aria-describedby={spouse2PiaField.readOnly ? 'spouse2-pia-source' : undefined}
-                                                    className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
+                                                    className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-ret1re-navy/20 focus:border-ret1re-navy ${
                                                         spouse2PiaField.readOnly
-                                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                                                            : 'border-gray-300'
+                                                            ? 'border-ret1re-navy/30 bg-ret1re-navyTint text-ret1re-navy'
+                                                            : 'border-ret1re-sand'
                                                     }`}
                                                     placeholder="Insert PIA here"
                                                 />
                                                 {spouse2PiaField.readOnly && (
-                                                    <p id="spouse2-pia-source" className="mt-1 text-xs text-emerald-700">
+                                                    <p id="spouse2-pia-source" className="mt-1 text-sm text-ret1re-navy">
                                                         {scenario.piaSource.spouse2 === 'workshop'
                                                             ? 'PIA Calculator value currently driving the chart.'
                                                             : 'Earnings-record value currently driving the chart.'}
@@ -3517,13 +3517,13 @@ const ShowMeTheMoneyCalculator = () => {
                                                 )}
                                             </div>
 
-                                            <div className="bg-primary-100 rounded p-2">
-                                                <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                            <div className="bg-ret1re-navyTint rounded-md p-3">
+                                                <label className="block text-sm font-medium text-ret1re-charcoal mb-1 flex items-center gap-1">
                                                     Preferred Filing Age
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPreferredFilingModal(true)}
-                                                        className="text-primary-600 hover:text-primary-700 underline text-xs"
+                                                        className="text-ret1re-navy hover:text-ret1re-navyLight underline text-sm"
                                                     >
                                                         What's This?
                                                     </button>
@@ -3535,7 +3535,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             value={spouse2PreferredYear}
                                                             onChange={e => setSpouse2PreferredYear(Number(e.target.value))}
                                                             onBlur={handleSpouse2AgeBlur}
-                                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                             placeholder="Yr"
                                                         />
                                                     </div>
@@ -3545,7 +3545,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             value={spouse2PreferredMonth}
                                                             onChange={e => setSpouse2PreferredMonth(Number(e.target.value))}
                                                             onBlur={handleSpouse2AgeBlur}
-                                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                             placeholder="Mo"
                                                         />
                                                     </div>
@@ -3554,13 +3554,13 @@ const ShowMeTheMoneyCalculator = () => {
                                         </div>
 
                                         {/* View Only Checkbox - At Bottom */}
-                                        <div className="pt-3 mt-3 border-t border-gray-200">
-                                            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+                                        <div className="pt-3 mt-3 border-t border-ret1re-sand">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-mid hover:text-ret1re-charcoal">
                                                 <input
                                                     type="checkbox"
                                                     checked={activeRecordView === 'spouse'}
                                                     onChange={handleSpouseOnlyToggle}
-                                                    className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                    className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                                 />
                                                 <span title="This setting can also be changed in the Settings section">Show only this person</span>
                                             </label>
@@ -3569,20 +3569,20 @@ const ShowMeTheMoneyCalculator = () => {
                                 )}
 
                                 {/* Inflation - Moved Here */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm mb-4">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Inflation Assumption</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white mb-4">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-2">Inflation Assumption</h3>
                                     <div className="space-y-2">
                                         <div className="pt-2">
                                             <div className="flex justify-between items-center mb-1">
                                                 <div className="flex items-center gap-1">
-                                                    <label className="text-xs font-medium text-gray-700">Annual COLA</label>
+                                                    <label className="text-sm font-medium text-ret1re-charcoal">Annual COLA</label>
                                                     <div className="group relative">
-                                                        <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                                        <svg className="w-3.5 h-3.5 text-ret1re-warmGray cursor-help" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                                         </svg>
-                                                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50">
+                                                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-ret1re-charcoal text-white text-sm rounded shadow-lg z-50">
                                                             <div className="font-semibold mb-1">How COLA is Applied:</div>
-                                                            <ul className="space-y-1 text-xs">
+                                                            <ul className="space-y-1 text-sm">
                                                                 <li>• <span className="font-medium">Before age 60:</span> Applied annually</li>
                                                                 <li>• <span className="font-medium">Ages 60-61:</span> Frozen at 0%</li>
                                                                 <li>• <span className="font-medium">Age 62 onward:</span> Your rate applies annually</li>
@@ -3591,7 +3591,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <span className="text-xs font-semibold text-primary-600">
+                                                <span className="text-sm font-semibold text-ret1re-navy tabular-nums">
                                                     {(inflation * 100).toFixed(1)}%
                                                 </span>
                                             </div>
@@ -3602,17 +3602,17 @@ const ShowMeTheMoneyCalculator = () => {
                                                 min="0"
                                                 max="0.1"
                                                 step="0.001"
-                                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                                                className="w-full h-1 bg-ret1re-sand rounded-lg appearance-none cursor-pointer accent-ret1re-navy"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Show Me Just This Single Year - Between Spouse and Options */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-white">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Show Me Just This Single Year</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-2">Show Me Just This Single Year</h3>
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm text-ret1re-charcoal">
                                             <input
                                                 type="checkbox"
                                                 checked={showYearView}
@@ -3623,21 +3623,21 @@ const ShowMeTheMoneyCalculator = () => {
                                                         setShowYearModal(true);
                                                     }
                                                 }}
-                                                className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                                className="w-4 h-4 accent-ret1re-navy border-ret1re-sand rounded"
                                             />
                                             <span>Enable year view</span>
                                         </label>
 
                                         {showYearView && (
                                             <div>
-                                                <label className="block text-xs text-gray-600 mb-1">Select age:</label>
+                                                <label className="block text-sm text-ret1re-mid mb-1">Select age:</label>
                                                 <select
                                                     value={selectedYearAge}
                                                     onChange={(e) => {
                                                         setSelectedYearAge(Number(e.target.value));
                                                         setShowYearModal(true);
                                                     }}
-                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                    className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                 >
                                                     {Array.from({ length: 95 - 62 + 1 }, (_, i) => 62 + i).map(age => {
                                                         // Calculate ages for both spouses if married
@@ -3665,24 +3665,24 @@ const ShowMeTheMoneyCalculator = () => {
 
                                 {/* Options - Compact (Only if Married for Premature Death) */}
                                 {isMarried && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm mt-4">
-                                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Options</h3>
+                                    <div className="border border-ret1re-sand rounded-md p-4 bg-white mt-4">
+                                        <h3 className="text-base font-bold text-ret1re-navy mb-2">Options</h3>
                                         <div className="space-y-2">
                                             <div className="space-y-2">
                                                 <Checkbox
-                                                    label={<span className="text-xs">Potential Premature Death</span>}
+                                                    label={<span className="text-sm">Potential Premature Death</span>}
                                                     checked={prematureDeath}
                                                     onChange={e => setPrematureDeath(e.target.checked)}
                                                 />
                                                 {prematureDeath && (
                                                     <div>
-                                                        <label className="block text-xs text-gray-600 mb-1">
+                                                        <label className="block text-sm text-ret1re-mid mb-1">
                                                             {isMarried ? 'Death at ages:' : 'Death at age:'}
                                                         </label>
                                                         <select
                                                             value={deathAge}
                                                             onChange={e => setDeathAge(Number(e.target.value))}
-                                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                                                            className="w-full px-2 py-1 text-sm border border-ret1re-sand rounded focus:ring-1 focus:ring-ret1re-navy/20"
                                                         >
                                                             {Array.from({ length: 100 - 62 + 1 }, (_, idx) => 62 + idx).map(age => {
                                                                 const primaryAge = age;
@@ -3712,154 +3712,129 @@ const ShowMeTheMoneyCalculator = () => {
                                 {/* Separator */}
                                 <div className="relative py-4">
                                     <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t-2 border-gray-300"></div>
+                                        <div className="w-full border-t border-ret1re-sand"></div>
                                     </div>
                                     <div className="relative flex justify-center">
-                                        <span className="px-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        <span className="px-3 bg-white text-xs font-bold text-ret1re-warmGray uppercase tracking-[0.12em]">
                                             Tools & Resources
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Quick Access Tools */}
-                                <div className="border border-gray-200 rounded-lg p-3 bg-gradient-to-br from-white to-gray-50 shadow-sm">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Core Features</h3>
+                                <div className="border border-ret1re-sand rounded-md p-4 bg-white">
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-3">Core Features</h3>
                                     <div className="space-y-2">
                                         {/* Featured: PIA Calculator - UPGRADED */}
-                                        <div className="p-4 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 border-2 border-teal-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🧮</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-teal-900 mb-1">PIA Calculator</h4>
-                                                    <p className="text-xs text-teal-700">Calculate your Primary Insurance Amount from your earnings record</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">PIA Calculator</h4>
+                                                    <p className="text-sm text-ret1re-mid">Calculate your Primary Insurance Amount from your earnings record</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/pia-calculator')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-3 px-4 bg-ret1re-navy hover:bg-ret1re-navyLight text-white font-bold rounded-md transition-colors"
                                             >
                                                 Refine your PIA
                                             </button>
-                                            <p className="text-xs text-teal-600 mt-2 text-center italic">
-                                                ⚡ Essential: Get your exact benefit amount
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
+                                                Essential: Get your exact benefit amount
                                             </p>
                                         </div>
 
                                         {/* Featured: One Month at a Time - MOVED UP */}
-                                        <div className="p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border-2 border-indigo-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🎯</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-indigo-900 mb-1">One Month at a Time</h4>
-                                                    <p className="text-xs text-indigo-700">See how each month of waiting builds guaranteed retirement income</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">One Month at a Time</h4>
+                                                    <p className="text-sm text-ret1re-mid">See how each month of waiting builds guaranteed retirement income</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setShowOneMonthModal(true)}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                📊 Explore Month-by-Month Value
+                                                Explore Month-by-Month Value
                                             </button>
-                                            <p className="text-xs text-indigo-600 mt-2 text-center italic">
-                                                ✨ NEW: Interactive bridge-building tool
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
+                                                NEW: Interactive bridge-building tool
                                             </p>
                                         </div>
 
                                         {/* Start-Stop-Start Strategy */}
-                                        <div className="p-4 bg-gradient-to-br from-purple-50 via-fuchsia-50 to-rose-50 border-2 border-purple-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">🔄</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-purple-900 mb-1">Start-Stop-Start Strategy</h4>
-                                                    <p className="text-xs text-purple-700">File early, suspend at FRA, restart at 70 to maximize credits</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Start-Stop-Start Strategy</h4>
+                                                    <p className="text-sm text-ret1re-mid">File early, suspend at FRA, restart at 70 to maximize credits</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/start-stop-start')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                🔄 Explore Start-Stop-Start
+                                                Explore Start-Stop-Start
                                             </button>
-                                            <p className="text-xs text-purple-600 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 Compare early vs delayed claiming with suspension
                                             </p>
                                         </div>
 
                                         {/* Early/Late */}
-                                        <div className="p-4 bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-amber-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">⏳</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-amber-900 mb-1">Early/Late</h4>
-                                                    <p className="text-xs text-amber-700">Compare claiming at 62, FRA, and 70</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Early/Late</h4>
+                                                    <p className="text-sm text-ret1re-mid">Compare claiming at 62, FRA, and 70</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setChartView('earlyLate')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                ⏳ Open Early/Late View
+                                                Open Early/Late View
                                             </button>
-                                            <p className="text-xs text-amber-700 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 Quick visual comparison inside the main chart
                                             </p>
                                         </div>
 
                                         {/* Life Expectancy Reality Check */}
-                                        <div className="p-4 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-300 rounded-xl shadow-lg">
+                                        <div className="p-4 bg-ret1re-cream border border-ret1re-sand rounded-md">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-                                                        <span className="text-white text-xl">📊</span>
-                                                    </div>
-                                                </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-base font-bold text-emerald-900 mb-1">Life Expectancy</h4>
-                                                    <p className="text-xs text-emerald-700">Survival probability curves for planning</p>
+                                                    <h4 className="text-base font-bold text-ret1re-navy mb-1">Life Expectancy</h4>
+                                                    <p className="text-sm text-ret1re-mid">Survival probability curves for planning</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => navigate('/life-expectancy')}
-                                                className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                                                className="w-full py-2.5 px-4 bg-white border border-ret1re-navy text-ret1re-navy hover:bg-ret1re-navyTint font-bold rounded-md transition-colors"
                                             >
-                                                📊 Check Life Expectancy
+                                                Check Life Expectancy
                                             </button>
-                                            <p className="text-xs text-emerald-600 mt-2 text-center italic">
+                                            <p className="text-sm text-ret1re-warmGray mt-2 text-center italic">
                                                 The longer you live, the longer you're expected to live
                                             </p>
                                         </div>
 
                                     </div>
 
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-3 mt-4">Helper Apps</h3>
+                                    <h3 className="text-base font-bold text-ret1re-navy mb-3 mt-4">Helper Apps</h3>
                                     <div className="space-y-2">
                                         {/* Bubbles (4% Rule Equivalent) */}
                                         <button
                                             onClick={() => setChartView('bubble')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-cyan-50 to-sky-100 hover:from-cyan-100 hover:to-sky-200 border border-cyan-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-cyan-900">Bubbles</div>
-                                                    <div className="text-xs text-cyan-700 mt-0.5">4% Rule Equivalent</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Bubbles</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">4% Rule Equivalent</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-cyan-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3867,14 +3842,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Sequence of Returns */}
                                         <button
                                             onClick={() => navigate('/sequence-risk')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 border border-purple-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-purple-900">Sequence of Returns</div>
-                                                    <div className="text-xs text-purple-700 mt-0.5">Market timing impact</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Sequence of Returns</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Market timing impact</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-purple-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3883,14 +3858,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Longevity Spending */}
                                         <button
                                             onClick={() => navigate('/longevity-spending')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border border-green-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-green-900">Longevity Spending</div>
-                                                    <div className="text-xs text-green-700 mt-0.5">Plan retirement phases</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Longevity Spending</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Plan retirement phases</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-green-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3899,14 +3874,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Income Target */}
                                         <button
                                             onClick={() => navigate('/income-target')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 border border-orange-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-orange-900">Income Target</div>
-                                                    <div className="text-xs text-orange-700 mt-0.5">Set retirement goals</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Income Target</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Set retirement goals</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-orange-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3915,14 +3890,14 @@ const ShowMeTheMoneyCalculator = () => {
                                         {/* Budget Worksheet */}
                                         <button
                                             onClick={() => navigate('/budget-worksheet')}
-                                            className="w-full text-left px-3 py-2 bg-gradient-to-r from-pink-50 to-pink-100 hover:from-pink-100 hover:to-pink-200 border border-pink-200 rounded-lg transition-all hover:shadow-md group"
+                                            className="w-full text-left px-3 py-2 bg-white hover:bg-ret1re-cream border border-ret1re-sand rounded-md transition-colors group"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-pink-900">Budget Worksheet</div>
-                                                    <div className="text-xs text-pink-700 mt-0.5">Track monthly expenses</div>
+                                                    <div className="text-sm font-semibold text-ret1re-navy">Budget Worksheet</div>
+                                                    <div className="text-sm text-ret1re-warmGray mt-0.5">Track monthly expenses</div>
                                                 </div>
-                                                <svg className="w-4 h-4 text-pink-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-ret1re-warmGray group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -3938,7 +3913,7 @@ const ShowMeTheMoneyCalculator = () => {
                 {sidebarCollapsed && (
                     <button
                         onClick={() => setSidebarCollapsed(false)}
-                        className="hidden lg:flex absolute top-4 left-1 p-1.5 bg-primary-600 text-white rounded-lg shadow-lg hover:bg-primary-700 transition-all hover:scale-110 z-10"
+                        className="hidden lg:flex absolute top-4 left-1 p-1.5 bg-white text-ret1re-mid border border-ret1re-sand rounded-md hover:bg-ret1re-sandDeep hover:text-ret1re-navy transition-colors z-10"
                         title="Expand controls"
                     >
                         <svg
@@ -3954,8 +3929,8 @@ const ShowMeTheMoneyCalculator = () => {
             </div>
 
             {/* Main Chart Area */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-                <div className="border-b border-gray-200 bg-white px-4 py-3">
+            <div className="flex-1 flex flex-col overflow-hidden bg-ret1re-cream">
+                <div className="border-b border-ret1re-sand bg-white px-6">
                     <div className="flex flex-wrap gap-2 items-center justify-between">
                         <PillTabs className="flex-wrap">
                             {chartTabs.filter(tab => tab.key !== 'combined' && tab.key !== 'earlyLate').map(tab => (
@@ -3965,7 +3940,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     onClick={() => setChartView(tab.key)}
                                     title={tab.tooltip || ''}
                                 >
-                                    <span className="text-xs">{tab.label}</span>
+                                    {tab.label}
                                 </PillTab>
                             ))}
                         </PillTabs>
