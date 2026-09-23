@@ -1,6 +1,10 @@
 // frontend/src/components/OurLifelongTimeline/TimelineCursor.jsx
 import React, { useRef, useState, useEffect } from 'react';
 import { buildNarrative, buildFilingComparisonBoxes } from './timelineMath';
+import { REFERENCE_COLORS, SCENARIO_INK } from '../../theme/navigatorColors';
+
+// buildFilingComparisonBoxes returns [age 70, age 62, Your Plan] in that order.
+const FILING_BOX_INK = [SCENARIO_INK.age70, SCENARIO_INK.age62, SCENARIO_INK.preferred];
 
 const TimelineCursor = ({
   axisStartYear,
@@ -83,14 +87,14 @@ const TimelineCursor = ({
       style={{ width: `${totalYears * pxPerYear}px` }}
     >
       <div
-        className="absolute top-0 bottom-0 w-1.5 rounded-full bg-green-500 shadow cursor-ew-resize z-20"
-        style={{ left: `calc(${yearToPercent(year)}% - 3px)` }}
+        className="absolute top-0 bottom-0 w-1.5 rounded-full shadow cursor-ew-resize z-20"
+        style={{ left: `calc(${yearToPercent(year)}% - 3px)`, backgroundColor: REFERENCE_COLORS.cursor }}
         onMouseDown={(e) => {
           e.preventDefault();
           setIsDragging(true);
         }}
       >
-        <div className="absolute -top-2.5 -left-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-white shadow" />
+        <div className="absolute -top-2.5 -left-1 w-3.5 h-3.5 rounded-full border-2 border-white shadow" style={{ backgroundColor: REFERENCE_COLORS.cursor }} />
 
         <div
           className={`absolute w-[600px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-sm ${flipLeft ? 'right-2' : 'left-2'}`}
@@ -131,10 +135,13 @@ const TimelineCursor = ({
               number people compare at a glance -- with the lifetime running total present but
               visually secondary underneath it, per Kurt's visual-hierarchy guidance. */}
           <div className="grid grid-cols-3 gap-2 border-t border-gray-100 pt-2">
-            {filingBoxes.map((box) => (
+            {filingBoxes.map((box, index) => (
               <div key={box.label} className="text-center">
                 <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">{box.label}</div>
-                <div className={`text-lg font-extrabold ${box.muted ? 'text-gray-400' : 'text-primary-700'}`}>
+                <div
+                  className={`text-lg font-extrabold ${box.muted ? 'text-gray-400' : ''}`}
+                  style={box.muted ? undefined : { color: FILING_BOX_INK[index] }}
+                >
                   {box.bigText}
                 </div>
               </div>

@@ -37,6 +37,7 @@ import { fetchEarnings, fetchWorkStopLadder, calculatePiaFromEarnings, readDevEa
 import { describeEarningsVintage } from '../utils/earningsVintage';
 import { readWorkshopPia, disableWorkshopPia, workshopPiaHydrationAction } from '../utils/workshopPia';
 import { getAuthToken } from '../config/supabase';
+import { SCENARIO_COLORS, SCENARIO_TINTS, SCENARIO_INK, STAGE_COLORS, STAGE_GRIP_COLOR, STAGE_BORDER_COLOR, REFERENCE_COLORS, SIGNAL_COLORS, CHART_CHROME, withAlpha } from '../theme/navigatorColors';
 
 const birthYearFromDob = (dob) => {
     if (!dob) return null;
@@ -132,25 +133,26 @@ const RetirementStagesSlider = ({
     const noGoWidth = 100 - ageToPercent(slowGoEndAge);
 
     return (
-        <div className="w-full opacity-80" style={{ paddingLeft: '60px', paddingRight: '30px' }}>
-            <div ref={sliderRef} className="relative h-9 flex rounded-lg overflow-hidden shadow-md border-2 border-gray-300">
+        <div className="w-full" style={{ paddingLeft: '60px', paddingRight: '30px' }}>
+            <div ref={sliderRef} className="relative h-9 flex rounded-md overflow-hidden border" style={{ borderColor: STAGE_BORDER_COLOR }}>
                 {/* Go-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${goGoWidth}%`,
-                        backgroundColor: '#E67E22', // Carrot (Flat UI) - Assumed correction for #E6E22
+                        backgroundColor: STAGE_COLORS.goGo.bg,
+                        color: STAGE_COLORS.goGo.text,
                     }}
                 >
                     {label && (
-                        <div className="absolute left-3 px-2 py-0.5 bg-black/25 text-white font-extrabold text-xs rounded tracking-wider uppercase select-none">
+                        <div className="absolute left-3 px-2 py-0.5 bg-white/70 font-extrabold text-xs rounded tracking-wider uppercase select-none" style={{ color: STAGE_COLORS.goGo.text }}>
                             {label}
                         </div>
                     )}
                     {goGoWidth > (label ? 22 : 15) ? (
-                        <span className="drop-shadow-sm">Go-Go Years</span>
+                        <span>Go-Go Years</span>
                     ) : goGoWidth > (label ? 15 : 8) ? (
-                        <span className="drop-shadow-sm">Go-Go</span>
+                        <span>Go-Go</span>
                     ) : null}
                 </div>
 
@@ -160,9 +162,9 @@ const RetirementStagesSlider = ({
                     style={{ left: `calc(${goGoWidth}% - 16px)` }}
                     onMouseDown={handleGoGoMouseDown}
                 >
-                    <div className={`w-1 h-full transition-all ${isDraggingGoGo ? 'bg-gray-800 w-2' : 'bg-gray-600 group-hover:bg-gray-700 group-hover:w-1.5'}`} />
+                    <div className={`h-full transition-all ${isDraggingGoGo ? 'w-1' : 'w-px group-hover:w-0.5'}`} style={{ backgroundColor: STAGE_GRIP_COLOR, opacity: 0.35 }} />
                     {/* Draggable handle indicator */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 bg-gray-800 rounded transition-all ${isDraggingGoGo ? 'w-4 h-8 shadow-lg' : 'w-3 h-6 group-hover:w-4 group-hover:h-8 group-hover:shadow-md'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 rounded-sm transition-all ${isDraggingGoGo ? 'w-2 h-6' : 'w-1.5 h-5 group-hover:w-2 group-hover:h-6'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }}>
                         {/* Grip dots */}
                         <div className="flex flex-col items-center justify-center h-full gap-0.5">
                             <div className="w-0.5 h-0.5 bg-white rounded-full opacity-70"></div>
@@ -174,16 +176,17 @@ const RetirementStagesSlider = ({
 
                 {/* Slow-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${slowGoWidth}%`,
-                        backgroundColor: '#F1C40F', // Sunflower (Flat UI)
+                        backgroundColor: STAGE_COLORS.slowGo.bg,
+                        color: STAGE_COLORS.slowGo.text,
                     }}
                 >
                     {slowGoWidth > 15 ? (
-                        <span className="drop-shadow-sm">Slow-Go Years</span>
+                        <span>Slow-Go Years</span>
                     ) : slowGoWidth > 8 ? (
-                        <span className="drop-shadow-sm">Slow-Go</span>
+                        <span>Slow-Go</span>
                     ) : null}
                 </div>
 
@@ -193,9 +196,9 @@ const RetirementStagesSlider = ({
                     style={{ left: `calc(${goGoWidth + slowGoWidth}% - 16px)` }}
                     onMouseDown={handleSlowGoMouseDown}
                 >
-                    <div className={`w-1 h-full transition-all ${isDraggingSlowGo ? 'bg-gray-800 w-2' : 'bg-gray-600 group-hover:bg-gray-700 group-hover:w-1.5'}`} />
+                    <div className={`h-full transition-all ${isDraggingSlowGo ? 'w-1' : 'w-px group-hover:w-0.5'}`} style={{ backgroundColor: STAGE_GRIP_COLOR, opacity: 0.35 }} />
                     {/* Draggable handle indicator */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 bg-gray-800 rounded transition-all ${isDraggingSlowGo ? 'w-4 h-8 shadow-lg' : 'w-3 h-6 group-hover:w-4 group-hover:h-8 group-hover:shadow-md'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 rounded-sm transition-all ${isDraggingSlowGo ? 'w-2 h-6' : 'w-1.5 h-5 group-hover:w-2 group-hover:h-6'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }}>
                         {/* Grip dots */}
                         <div className="flex flex-col items-center justify-center h-full gap-0.5">
                             <div className="w-0.5 h-0.5 bg-white rounded-full opacity-70"></div>
@@ -207,16 +210,17 @@ const RetirementStagesSlider = ({
 
                 {/* No-Go Years Section */}
                 <div
-                    className="relative flex items-center justify-center text-white font-bold text-sm transition-all duration-200"
+                    className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
                         width: `${noGoWidth}%`,
-                        backgroundColor: '#95A5A6', // Concrete (Flat UI)
+                        backgroundColor: STAGE_COLORS.noGo.bg,
+                        color: STAGE_COLORS.noGo.text,
                     }}
                 >
                     {noGoWidth > 15 ? (
-                        <span className="drop-shadow-sm">No-Go Years</span>
+                        <span>No-Go Years</span>
                     ) : noGoWidth > 8 ? (
-                        <span className="drop-shadow-sm">No-Go</span>
+                        <span>No-Go</span>
                     ) : null}
                 </div>
             </div>
@@ -323,7 +327,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age62Monthly,
             covered: Math.min(age62Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age62Monthly),
-            color: '#EF4444'
+            color: SCENARIO_COLORS.age62
         },
         {
             label: `File at ${preferredFilingYear}${preferredFilingMonth > 0 ? `y ${preferredFilingMonth}m` : ''}`,
@@ -331,7 +335,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age67Monthly,
             covered: Math.min(age67Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age67Monthly),
-            color: '#3B82F6'
+            color: SCENARIO_COLORS.preferred
         },
         {
             label: 'File at 70',
@@ -339,11 +343,11 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: age70Monthly,
             covered: Math.min(age70Monthly, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - age70Monthly),
-            color: '#14B8A6'
+            color: SCENARIO_COLORS.age70
         }
     ];
 
-    const gapColor = '#9CA3AF'; // Gray for gaps
+    const gapColor = SIGNAL_COLORS.cautionSoft; // Shortfall that savings must cover
 
     const width = svgWidth;
     const height = svgHeight; // was 700 fixed
@@ -370,7 +374,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
             income: hybridTotalIncome,
             covered: Math.min(hybridTotalIncome, inflatedMonthlyNeeds),
             gap: Math.max(0, inflatedMonthlyNeeds - hybridTotalIncome),
-            color: '#9333EA'
+            color: SCENARIO_COLORS.hybrid
         }
         : scenarios[selectedStrategy];
 
@@ -556,7 +560,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <g>
                             <path
                                 d={flowPathLower}
-                                fill="#EF4444"
+                                fill={SCENARIO_COLORS.age62}
                                 opacity="0.5"
                                 className="flow-path"
                             />
@@ -571,7 +575,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <g>
                             <path
                                 d={flowPathHigher}
-                                fill="#14B8A6"
+                                fill={SCENARIO_COLORS.age70}
                                 opacity="0.5"
                                 className="flow-path"
                             />
@@ -601,7 +605,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                             cy={baseY - lowerHeight - higherHeight - 30}
                                             r="8"
                                             fill="white"
-                                            stroke="#9333EA"
+                                            stroke={SCENARIO_COLORS.hybrid}
                                             strokeWidth="2"
                                             style={{ cursor: 'pointer' }}
                                             onClick={() => setSelectedStrategy(3)}
@@ -611,7 +615,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                 cx={hybridX + barWidth / 2}
                                                 cy={baseY - lowerHeight - higherHeight - 30}
                                                 r="4"
-                                                fill="#9333EA"
+                                                fill={SCENARIO_COLORS.hybrid}
                                                 style={{ cursor: 'pointer' }}
                                                 onClick={() => setSelectedStrategy(3)}
                                             />
@@ -625,7 +629,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                     y={baseY - lowerHeight}
                                                     width={barWidth}
                                                     height={lowerHeight}
-                                                    fill="#EF4444"
+                                                    fill={SCENARIO_COLORS.age62}
                                                     rx="8"
                                                     opacity={barOpacity}
                                                     className="flow-bar"
@@ -648,7 +652,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                                     y={baseY - lowerHeight - higherHeight}
                                                     width={barWidth}
                                                     height={higherHeight}
-                                                    fill="#14B8A6"
+                                                    fill={SCENARIO_COLORS.age70}
                                                     rx="8"
                                                     opacity={barOpacity}
                                                     className="flow-bar"
@@ -794,7 +798,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                     x={barX + barWidth / 2}
                                     y={baseY - coveredHeight / 2 - 8}
                                     textAnchor="middle"
-                                    fill="white"
+                                    fill={scenario.color === SCENARIO_COLORS.preferred ? CHART_CHROME.ink : 'white'}
                                     fontSize="13"
                                     fontWeight="600"
                                     className="flow-text"
@@ -808,7 +812,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                         x={barX + barWidth / 2}
                                         y={baseY - coveredHeight - gapHeight / 2}
                                         textAnchor="middle"
-                                        fill="white"
+                                        fill="#5C4A12"
                                         fontSize="12"
                                         fontWeight="600"
                                         className="flow-text"
@@ -830,7 +834,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                 y={baseY - (selectedScenario.covered / inflatedMonthlyNeeds) * targetHeight}
                                 width={barWidth}
                                 height={(selectedScenario.covered / inflatedMonthlyNeeds) * targetHeight}
-                                fill="#C2410C"
+                                fill={selectedScenario.color}
                                 rx="8"
                                 opacity="0.9"
                                 className="flow-bar"
@@ -849,7 +853,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                         y={baseY - targetHeight}
                                         width={barWidth}
                                         height={(selectedScenario.gap / inflatedMonthlyNeeds) * targetHeight}
-                                        fill="#FB923C"
+                                        fill={SIGNAL_COLORS.cautionSoft}
                                         rx="8"
                                         opacity="0.85"
                                         className="flow-bar"
@@ -865,7 +869,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                                             x={rightX + barWidth / 2}
                                             y={baseY - targetHeight + ((selectedScenario.gap / inflatedMonthlyNeeds) * targetHeight) / 2}
                                             textAnchor="middle"
-                                            fill="white"
+                                            fill="#5C4A12"
                                             fontSize="13"
                                             fontWeight="600"
                                             className="flow-text"
@@ -903,7 +907,7 @@ const FlowVisualization = ({ scenarioData, age, monthlyNeeds, activeRecordView, 
                         <div className="text-xs font-semibold text-gray-600 mb-1">{scenario.label}</div>
                         <div className="text-sm">
                             <span className="text-gray-900 font-medium">Gap: </span>
-                            <span className={scenario.gap > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}>
+                            <span className="font-bold" style={{ color: scenario.gap > 0 ? SIGNAL_COLORS.loss : SIGNAL_COLORS.gain }}>
                                 {scenario.gap > 0 ? currencyFormatter.format(Math.round(scenario.gap)) : 'Covered!'}
                             </span>
                         </div>
@@ -1049,17 +1053,17 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {
                     name: 'File at 62',
                     value: projections.age62.monthly[calendarYear] || 0,
-                    color: '#EF4444'
+                    color: SCENARIO_COLORS.age62
                 },
                 {
                     name: 'File at 67',
                     value: projections.preferred.monthly[calendarYear] || 0,
-                    color: '#3B82F6'
+                    color: SCENARIO_COLORS.preferred
                 },
                 {
                     name: 'File at 70',
                     value: projections.age70.monthly[calendarYear] || 0,
-                    color: '#14B8A6'
+                    color: SCENARIO_COLORS.age70
                 }
             ];
 
@@ -1078,7 +1082,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 62 - Total',
             value: age62Value,
-            color: '#EF4444',
+            color: SCENARIO_COLORS.age62,
             isSince70: false
         });
 
@@ -1086,7 +1090,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 62 - Since 70',
                 value: age62Since70,
-                color: '#F87171',
+                color: SCENARIO_TINTS.age62,
                 isSince70: true
             });
         }
@@ -1099,7 +1103,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 67 - Total',
             value: age67Value,
-            color: '#3B82F6',
+            color: SCENARIO_COLORS.preferred,
             isSince70: false
         });
 
@@ -1107,7 +1111,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 67 - Since 70',
                 value: age67Since70,
-                color: '#60A5FA',
+                color: SCENARIO_TINTS.preferred,
                 isSince70: true
             });
         }
@@ -1120,7 +1124,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
         scenarios.push({
             name: 'File at 70 - Total',
             value: age70Value,
-            color: '#14B8A6',
+            color: SCENARIO_COLORS.age70,
             isSince70: false
         });
 
@@ -1128,7 +1132,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
             scenarios.push({
                 name: 'File at 70 - Since 70',
                 value: age70Since70,
-                color: '#5EEAD4',
+                color: SCENARIO_TINTS.age70,
                 isSince70: true
             });
         }
@@ -1442,8 +1446,8 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY}
                                     width={boxWidth}
                                     height={boxHeight}
-                                    fill={difference >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}
-                                    stroke={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gainSoft : SIGNAL_COLORS.lossSoft}
+                                    stroke={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                     strokeWidth="3"
                                     rx="12"
                                 />
@@ -1478,7 +1482,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     textAnchor="middle"
                                     fontSize={Math.round(36 * s)}
                                     fontWeight="700"
-                                    fill={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                 >
                                     {difference >= 0 ? '+' : ''}{currencyFormatter.format(Math.round(difference))}
                                 </text>
@@ -1489,7 +1493,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 185 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(18 * s)}
-                                    fill="#059669"
+                                    fill={SIGNAL_COLORS.gain}
                                     fontWeight="600"
                                 >
                                     🏆 {topName.replace(' - Total', '')}
@@ -1500,7 +1504,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 215 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(20 * s)}
-                                    fill="#059669"
+                                    fill={SIGNAL_COLORS.gain}
                                     fontWeight="700"
                                 >
                                     {currencyFormatter.format(Math.round(topValue))}
@@ -1512,7 +1516,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 255 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(18 * s)}
-                                    fill="#DC2626"
+                                    fill={SIGNAL_COLORS.loss}
                                     fontWeight="600"
                                 >
                                     {bottomName.replace(' - Total', '')}
@@ -1523,7 +1527,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     y={boxY + 285 * s}
                                     textAnchor="middle"
                                     fontSize={Math.round(20 * s)}
-                                    fill="#DC2626"
+                                    fill={SIGNAL_COLORS.loss}
                                     fontWeight="700"
                                 >
                                     {currencyFormatter.format(Math.round(bottomValue))}
@@ -1558,7 +1562,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                                     textAnchor="middle"
                                     fontSize={Math.round(32 * s)}
                                     fontWeight="700"
-                                    fill={difference >= 0 ? '#10B981' : '#EF4444'}
+                                    fill={difference >= 0 ? SIGNAL_COLORS.gain : SIGNAL_COLORS.loss}
                                 >
                                     {difference >= 0 ? '+' : ''}{currencyFormatter.format(Math.round(raceViewMode === 'monthly' ? difference * 12 : difference))}
                                 </text>
@@ -1574,7 +1578,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 62 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-red-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.age62 }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 62</div>
                     </div>
                     <div className="space-y-1">
@@ -1598,7 +1602,7 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 67 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-blue-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.preferred }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 67</div>
                     </div>
                     <div className="space-y-1">
@@ -1622,9 +1626,9 @@ const RaceTrackVisualization = ({ scenarioData, activeRecordView, isMarried, inf
                 {/* File at 70 */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-teal-500"></div>
+                        <div className="w-5 h-5 rounded" style={{ backgroundColor: SCENARIO_COLORS.age70 }}></div>
                         <div className="text-sm font-bold text-gray-700">File at 70</div>
-                        {raceData[0] && raceData[0].name.includes('File at 70') && <span className="ml-auto text-sm font-bold text-green-600">🏆 Leading</span>}
+                        {raceData[0] && raceData[0].name.includes('File at 70') && <span className="ml-auto text-sm font-bold" style={{ color: SCENARIO_INK.age70 }}>🏆 Leading</span>}
                     </div>
                     <div className="space-y-1">
                         <div className="text-sm">
@@ -2525,26 +2529,34 @@ const ShowMeTheMoneyCalculator = () => {
         }
 
         if (chartView === 'monthly') {
-            const monthlyBarStyle = { barPercentage: 0.6, categoryPercentage: 0.72, borderRadius: 4, maxBarThickness: 55 };
+            const monthlyBarStyle = { barPercentage: 0.92, categoryPercentage: 0.62, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: 'bottom', maxBarThickness: 44 };
             newChartData = {
                 labels,
                 datasets: [
-                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: 'rgba(255, 99, 132, 0.9)', ...monthlyBarStyle },
-                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: 'rgba(54, 162, 235, 0.9)', ...monthlyBarStyle },
-                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: 'rgba(75, 192, 192, 0.9)', ...monthlyBarStyle },
+                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age62, ...monthlyBarStyle },
+                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.preferred, ...monthlyBarStyle },
+                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age70, ...monthlyBarStyle },
                 ]
             };
             newChartOptions = {
                 plugins: {
-                    title: { display: true, text: 'Monthly View' },
-                    tooltip: { callbacks: { label: tooltipLabelFormatter } }
+                    title: { display: true, text: 'What each filing age pays you, year by year', color: '#2D3748', font: { size: 18, weight: '700' } },
+                    tooltip: { callbacks: { label: tooltipLabelFormatter } },
+                    legend: { labels: { color: '#4E4743', boxWidth: 12, boxHeight: 12, font: { size: 14 } } }
                 },
                 layout: { padding: CHART_PADDING },
                 scales: {
-                    x: { title: { text: 'Year' }, ticks: { autoSkip: false } },
+                    x: {
+                        title: { text: 'Year' },
+                        grid: { display: false },
+                        border: { color: '#C8BBAB' },
+                        ticks: { autoSkip: false, color: '#4E4743', font: { size: 14, weight: '700' } }
+                    },
                     y: {
                         title: { text: 'Monthly Benefit ($)' },
-                        ticks: { callback: formatCurrencyTick }
+                        grid: { color: '#ECE6DC' },
+                        border: { display: false, dash: [2, 4] },
+                        ticks: { callback: formatCurrencyTick, color: '#8C8278', font: { size: 13 } }
                     }
                 },
                 animation: {
@@ -2579,9 +2591,9 @@ const ShowMeTheMoneyCalculator = () => {
             newChartData = {
                 labels,
                 datasets: [
-                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: 'red', fill: false },
-                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: 'blue', fill: false },
-                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: 'green', fill: false },
+                    { label: 'File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age62, backgroundColor: SCENARIO_COLORS.age62, fill: false },
+                    { label: 'Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.preferred, backgroundColor: SCENARIO_COLORS.preferred, fill: false },
+                    { label: 'File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age70, backgroundColor: SCENARIO_COLORS.age70, fill: false },
                 ]
             };
             newChartOptions = {
@@ -2624,8 +2636,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Both @62',
                         data: valueMapper((isMarried && combinedProjections?.age62) ? combinedProjections.age62 : primaryProjections.age62),
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        backgroundColor: 'rgba(255, 159, 64, 0.12)',
+                        borderColor: SCENARIO_COLORS.age62,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2633,8 +2645,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Lower PIA @62, Higher PIA @70',
                         data: valueMapper(earlyLateProjection),
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                        borderColor: SCENARIO_COLORS.hybrid,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.hybrid, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2642,8 +2654,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Lower PIA @67, Higher PIA @70',
                         data: valueMapper(preferredLateProjection),
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                        borderColor: SCENARIO_COLORS.preferred,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2651,8 +2663,8 @@ const ShowMeTheMoneyCalculator = () => {
                     {
                         label: 'Both @70',
                         data: valueMapper(bothLateProjection),
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                        borderColor: SCENARIO_COLORS.age70,
+                        backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                         fill: false,
                         tension: 0.35,
                         pointRadius: 3
@@ -2692,8 +2704,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 62',
                     data: monthlyValues(combinedProjections.age62),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                    borderColor: SCENARIO_COLORS.age62,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2701,8 +2713,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'Preferred Filing Age',
                     data: monthlyValues(combinedProjections.preferred),
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                    borderColor: SCENARIO_COLORS.preferred,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2710,8 +2722,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 70',
                     data: monthlyValues(combinedProjections.age70),
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                    borderColor: SCENARIO_COLORS.age70,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2722,8 +2734,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 62',
                     data: cumulativeAfter70(combinedProjections.age62),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.12)',
+                    borderColor: SCENARIO_COLORS.age62,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age62, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2731,8 +2743,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'Preferred Filing Age',
                     data: cumulativeAfter70(combinedProjections.preferred),
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.12)',
+                    borderColor: SCENARIO_COLORS.preferred,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.preferred, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2740,8 +2752,8 @@ const ShowMeTheMoneyCalculator = () => {
                 {
                     label: 'File at 70',
                     data: cumulativeAfter70(combinedProjections.age70),
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.12)',
+                    borderColor: SCENARIO_COLORS.age70,
+                    backgroundColor: withAlpha(SCENARIO_COLORS.age70, 0.12),
                     fill: false,
                     tension: 0.25,
                     pointRadius: 3
@@ -2791,7 +2803,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     `Filing at 62: ${currencyFormatter.format(age62Value)}`,
                                     `Advantage: ${currencyFormatter.format(Math.abs(diff))}`
                                 ],
-                                backgroundColor: 'rgba(16, 185, 129, 0.95)',
+                                backgroundColor: SIGNAL_COLORS.gain,
                                 color: 'white',
                                 font: {
                                     size: 11,
@@ -2814,7 +2826,7 @@ const ShowMeTheMoneyCalculator = () => {
                                 yMax: 'max',
                                 yScaleID: 'y',
                                 adjustScaleRange: false,
-                                borderColor: 'rgba(147, 51, 234, 0.5)',
+                                borderColor: withAlpha(REFERENCE_COLORS.marker, 0.5),
                                 borderWidth: 2,
                                 borderDash: [6, 4],
                                 display: true
@@ -2853,7 +2865,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'File at 62',
                             data: monthlyValues(combinedProjections.age62),
-                            backgroundColor: 'rgba(255, 99, 132, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.age62,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2862,7 +2874,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'Preferred Filing Age',
                             data: monthlyValues(combinedProjections.preferred),
-                            backgroundColor: 'rgba(54, 162, 235, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.preferred,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2871,7 +2883,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'bar',
                             label: 'File at 70',
                             data: monthlyValues(combinedProjections.age70),
-                            backgroundColor: 'rgba(75, 192, 192, 0.65)',
+                            backgroundColor: SCENARIO_COLORS.age70,
                             yAxisID: 'y_monthly',
                             barPercentage: 0.65,
                             categoryPercentage: 0.8
@@ -2880,7 +2892,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative File at 62',
                             data: cumulativeAfter70(combinedProjections.age62),
-                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderColor: SCENARIO_COLORS.age62,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2891,7 +2903,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative Preferred Filing Age',
                             data: cumulativeAfter70(combinedProjections.preferred),
-                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderColor: SCENARIO_COLORS.preferred,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2902,7 +2914,7 @@ const ShowMeTheMoneyCalculator = () => {
                             type: 'line',
                             label: 'Cumulative File at 70',
                             data: cumulativeAfter70(combinedProjections.age70),
-                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderColor: SCENARIO_COLORS.age70,
                             backgroundColor: 'transparent',
                             yAxisID: 'y_cumulative',
                             tension: 0.25,
@@ -2939,12 +2951,12 @@ const ShowMeTheMoneyCalculator = () => {
             newChartData = {
                 labels,
                 datasets: [
-                    { type: 'bar', label: 'Monthly File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: 'rgba(255, 99, 132, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'bar', label: 'Monthly Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: 'rgba(54, 162, 235, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'bar', label: 'Monthly File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: 'rgba(75, 192, 192, 0.9)', yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
-                    { type: 'line', label: 'Cumulative File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: 'red', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
-                    { type: 'line', label: 'Cumulative Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: 'blue', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
-                    { type: 'line', label: 'Cumulative File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: 'green', yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'bar', label: 'Monthly File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age62, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'bar', label: 'Monthly Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.preferred, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'bar', label: 'Monthly File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.monthly[year] || 0)), backgroundColor: SCENARIO_COLORS.age70, yAxisID: 'y_monthly', barPercentage: 0.65, categoryPercentage: 0.8, maxBarThickness: 70, borderRadius: 4 },
+                    { type: 'line', label: 'Cumulative File at 62', data: displayYearsForData.map(year => Math.round(projections.age62.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age62, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'line', label: 'Cumulative Preferred Filing Age', data: displayYearsForData.map(year => Math.round(projections.preferred.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.preferred, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
+                    { type: 'line', label: 'Cumulative File at 70', data: displayYearsForData.map(year => Math.round(projections.age70.cumulative[year] || 0)), borderColor: SCENARIO_COLORS.age70, yAxisID: 'y_cumulative', fill: false, order: 2, borderWidth: 2 },
                 ]
             };
             newChartOptions = {
@@ -3025,9 +3037,9 @@ const ShowMeTheMoneyCalculator = () => {
                 }
 
                 const scenarioConfigs = [
-                    { key: 'age62', label: 'File at 62', barColor: 'rgba(239, 68, 68, 0.78)', lineColor: 'rgba(239, 68, 68, 1)' },
-                    { key: 'preferred', label: 'Preferred Filing Age', barColor: 'rgba(59, 130, 246, 0.78)', lineColor: 'rgba(59, 130, 246, 1)' },
-                    { key: 'age70', label: 'File at 70', barColor: 'rgba(45, 212, 191, 0.78)', lineColor: 'rgba(20, 184, 166, 1)' },
+                    { key: 'age62', label: 'File at 62', barColor: SCENARIO_COLORS.age62, lineColor: SCENARIO_COLORS.age62 },
+                    { key: 'preferred', label: 'Preferred Filing Age', barColor: SCENARIO_COLORS.preferred, lineColor: SCENARIO_COLORS.preferred },
+                    { key: 'age70', label: 'File at 70', barColor: SCENARIO_COLORS.age70, lineColor: SCENARIO_COLORS.age70 },
                 ];
 
                 const scenarios = [];
@@ -3178,9 +3190,9 @@ const ShowMeTheMoneyCalculator = () => {
         }
 
         const scenarioConfigs = [
-            { key: 'age62', label: 'File at 62', barColor: 'rgba(239, 68, 68, 0.78)', lineColor: 'rgba(239, 68, 68, 1)' },
-            { key: 'preferred', label: 'Preferred Filing Age', barColor: 'rgba(59, 130, 246, 0.78)', lineColor: 'rgba(59, 130, 246, 1)' },
-            { key: 'age70', label: 'File at 70', barColor: 'rgba(45, 212, 191, 0.78)', lineColor: 'rgba(20, 184, 166, 1)' },
+            { key: 'age62', label: 'File at 62', barColor: SCENARIO_COLORS.age62, lineColor: SCENARIO_COLORS.age62 },
+            { key: 'preferred', label: 'Preferred Filing Age', barColor: SCENARIO_COLORS.preferred, lineColor: SCENARIO_COLORS.preferred },
+            { key: 'age70', label: 'File at 70', barColor: SCENARIO_COLORS.age70, lineColor: SCENARIO_COLORS.age70 },
         ];
 
         const scenarios = [];
@@ -4337,7 +4349,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                                     <>
                                                                         {/* Filing at 70 - Top */}
                                                                         <div className="flex flex-col items-center">
-                                                                            <h4 className="text-xl font-semibold text-green-600 mb-6">Filing at Age 70</h4>
+                                                                            <h4 className="text-xl font-semibold mb-6" style={{ color: SCENARIO_INK.age70 }}>Filing at Age 70</h4>
                                                                             <div className="relative w-full h-80 flex items-center justify-center">
                                                                                 {/* Monthly bubble - Left */}
                                                                                 <div
@@ -4348,8 +4360,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '20%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(74, 222, 128, 0.9), rgba(34, 197, 94, 0.7))',
-                                                                                        boxShadow: '0 8px 32px rgba(34, 197, 94, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.55),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4367,8 +4379,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '50%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(134, 239, 172, 0.85), rgba(74, 222, 128, 0.65))',
-                                                                                        boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.35),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4386,8 +4398,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '80%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(187, 247, 208, 0.8), rgba(134, 239, 172, 0.6))',
-                                                                                        boxShadow: '0 8px 32px rgba(134, 239, 172, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age70, 0.18),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age70, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4406,7 +4418,7 @@ const ShowMeTheMoneyCalculator = () => {
 
                                                                         {/* Filing at 62 - Bottom */}
                                                                         <div className="flex flex-col items-center">
-                                                                            <h4 className="text-xl font-semibold text-red-600 mb-6">Filing at Age 62</h4>
+                                                                            <h4 className="text-xl font-semibold mb-6" style={{ color: SCENARIO_INK.age62 }}>Filing at Age 62</h4>
                                                                             <div className="relative w-full h-80 flex items-center justify-center">
                                                                                 {/* Monthly bubble - Left */}
                                                                                 <div
@@ -4417,8 +4429,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '20%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(248, 113, 113, 0.9), rgba(239, 68, 68, 0.7))',
-                                                                                        boxShadow: '0 8px 32px rgba(239, 68, 68, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.55),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4436,8 +4448,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '50%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(252, 165, 165, 0.85), rgba(248, 113, 113, 0.65))',
-                                                                                        boxShadow: '0 8px 32px rgba(248, 113, 113, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.35),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4455,8 +4467,8 @@ const ShowMeTheMoneyCalculator = () => {
                                                                                         left: '80%',
                                                                                         top: '50%',
                                                                                         transform: 'translate(-50%, -50%)',
-                                                                                        background: 'radial-gradient(circle at 30% 30%, rgba(254, 202, 202, 0.8), rgba(252, 165, 165, 0.6))',
-                                                                                        boxShadow: '0 8px 32px rgba(252, 165, 165, 0.4)',
+                                                                                        background: withAlpha(SCENARIO_COLORS.age62, 0.18),
+                                                                                        border: `1px solid ${withAlpha(SCENARIO_COLORS.age62, 0.6)}`,
                                                                                         opacity: 0.9
                                                                                     }}
                                                                                 >
@@ -4877,8 +4889,7 @@ const ShowMeTheMoneyCalculator = () => {
                                     const strategies = [
                                         {
                                             name: 'File at 70',
-                                            color: 'green',
-                                            gradient: 'from-green-500 to-green-600',
+                                            color: SCENARIO_INK.age70,
                                             monthly: projections.age70.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling(70, projections.age70),
                                             cumulativeSince70: cumulativeSince70(projections.age70),
@@ -4888,8 +4899,7 @@ const ShowMeTheMoneyCalculator = () => {
                                         },
                                         {
                                             name: 'File at 67',
-                                            color: 'blue',
-                                            gradient: 'from-blue-500 to-blue-600',
+                                            color: SCENARIO_INK.preferred,
                                             monthly: projections.preferred.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling('preferred', projections.preferred),
                                             cumulativeSince70: cumulativeSince70(projections.preferred),
@@ -4899,8 +4909,7 @@ const ShowMeTheMoneyCalculator = () => {
                                         },
                                         {
                                             name: 'File at 62',
-                                            color: 'red',
-                                            gradient: 'from-red-500 to-red-600',
+                                            color: SCENARIO_INK.age62,
                                             monthly: projections.age62.monthly[calendarYear] || 0,
                                             cumulative: cumulativeSinceFiling(62, projections.age62),
                                             cumulativeSince70: cumulativeSince70(projections.age62),
@@ -4948,7 +4957,7 @@ const ShowMeTheMoneyCalculator = () => {
 
                                                 {/* Header */}
                                                 <div className="text-center mb-4">
-                                                    <div className={`text-lg font-bold bg-gradient-to-r ${strategy.gradient} text-transparent bg-clip-text`}>
+                                                    <div className="text-lg font-bold" style={{ color: strategy.color }}>
                                                         {strategy.name}
                                                     </div>
                                                 </div>
@@ -4977,7 +4986,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                             Monthly
                                                         </p>
-                                                        <p className={`text-2xl font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                        <p className={`text-2xl font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                             {strategy.started ? currencyFormatter.format(Math.round(strategy.monthly)) : '$0'}
                                                         </p>
                                                     </div>
@@ -4987,7 +4996,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                             Annual
                                                         </p>
-                                                        <p className={`text-xl font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                        <p className={`text-xl font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                             {strategy.started ? currencyFormatter.format(Math.round(annual)) : '$0'}
                                                         </p>
                                                         {strategy.started && monthsPaid > 0 && (
@@ -5008,7 +5017,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                                 Cumulative Since Filing
                                                             </p>
-                                                            <p className={`text-lg font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                            <p className={`text-lg font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                                 {currencyFormatter.format(Math.round(strategy.cumulative))}
                                                             </p>
                                                         </div>
@@ -5021,7 +5030,7 @@ const ShowMeTheMoneyCalculator = () => {
                                                             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                                                                 Cumulative Since 70
                                                             </p>
-                                                            <p className={`text-lg font-bold ${strategy.started ? `text-${strategy.color}-600` : 'text-gray-400'}`}>
+                                                            <p className={`text-lg font-bold ${strategy.started ? '' : 'text-gray-400'}`} style={strategy.started ? { color: strategy.color } : undefined}>
                                                                 {currencyFormatter.format(Math.round(strategy.cumulativeSince70))}
                                                             </p>
                                                         </div>

@@ -1,15 +1,17 @@
 // frontend/src/components/OurLifelongTimeline/CalendarPhaseBar.jsx
 import React, { useRef, useEffect } from 'react';
 import LongevityFlagPopover from './LongevityFlagPopover';
+import { SCENARIO_INK, REFERENCE_COLORS, STAGE_COLORS, STAGE_GRIP_COLOR, STAGE_BORDER_COLOR } from '../../theme/navigatorColors';
 
 const MIN_AGE = 62;
 const MAX_AGE = 95;
 
 const MILESTONE_STYLES = {
-  age62: { color: '#3B82F6', chip: '62' },
-  fra: { color: '#8B5CF6', chip: 'FRA' },
-  chosenFilingAge: { color: '#10B981', chip: 'Filed' },
-  age70: { color: '#F59E0B', chip: '70' }
+  // Same hues as the calculator's filing-scenario bars (ink shades so white chip text stays legible).
+  age62: { color: SCENARIO_INK.age62, chip: '62' },
+  fra: { color: REFERENCE_COLORS.fra, chip: 'FRA' },
+  chosenFilingAge: { color: SCENARIO_INK.preferred, chip: 'Filed' },
+  age70: { color: SCENARIO_INK.age70, chip: '70' }
 };
 
 const MARKER_LEVEL_HEIGHT = 48;
@@ -194,14 +196,14 @@ const CalendarPhaseBar = ({
       {/* The 62-95 phase bar itself, absolutely positioned within the shared track */}
       <div
         ref={trackRef}
-        className="absolute top-3 h-9 flex rounded-lg overflow-hidden shadow-md border-2 border-gray-300"
-        style={{ left: `${barLeftPercent}%`, width: `${barWidthPercent}%` }}
+        className="absolute top-3 h-9 flex rounded-md overflow-hidden border"
+        style={{ left: `${barLeftPercent}%`, width: `${barWidthPercent}%`, borderColor: STAGE_BORDER_COLOR }}
       >
         <div
-          className="relative flex items-center justify-center text-white font-bold text-sm"
-          style={{ width: `${goGoWidth}%`, backgroundColor: '#E67E22' }}
+          className="relative flex items-center justify-center font-bold text-sm tracking-wide"
+          style={{ width: `${goGoWidth}%`, backgroundColor: STAGE_COLORS.goGo.bg, color: STAGE_COLORS.goGo.text }}
         >
-          {goGoWidth > 15 ? <span className="drop-shadow-sm">Go-Go</span> : null}
+          {goGoWidth > 15 ? <span>Go-Go</span> : null}
         </div>
 
         <div
@@ -209,14 +211,14 @@ const CalendarPhaseBar = ({
           style={{ left: `calc(${goGoWidth}% - 12px)` }}
           onMouseDown={handleGoGoMouseDown}
         >
-          <div className={`w-1 h-full ${isDraggingGoGo ? 'bg-gray-800' : 'bg-gray-600 group-hover:bg-gray-700'}`} />
+          <div className={`h-5 rounded-sm transition-all ${isDraggingGoGo ? 'w-2' : 'w-1.5 group-hover:w-2'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }} />
         </div>
 
         <div
-          className="relative flex items-center justify-center text-white font-bold text-sm"
-          style={{ width: `${slowGoWidth}%`, backgroundColor: '#F1C40F' }}
+          className="relative flex items-center justify-center font-bold text-sm tracking-wide"
+          style={{ width: `${slowGoWidth}%`, backgroundColor: STAGE_COLORS.slowGo.bg, color: STAGE_COLORS.slowGo.text }}
         >
-          {slowGoWidth > 15 ? <span className="drop-shadow-sm">Slow-Go</span> : null}
+          {slowGoWidth > 15 ? <span>Slow-Go</span> : null}
         </div>
 
         <div
@@ -224,14 +226,14 @@ const CalendarPhaseBar = ({
           style={{ left: `calc(${goGoWidth + slowGoWidth}% - 12px)` }}
           onMouseDown={handleSlowGoMouseDown}
         >
-          <div className={`w-1 h-full ${isDraggingSlowGo ? 'bg-gray-800' : 'bg-gray-600 group-hover:bg-gray-700'}`} />
+          <div className={`h-5 rounded-sm transition-all ${isDraggingSlowGo ? 'w-2' : 'w-1.5 group-hover:w-2'}`} style={{ backgroundColor: STAGE_GRIP_COLOR }} />
         </div>
 
         <div
-          className="relative flex items-center justify-center text-white font-bold text-sm"
-          style={{ width: `${noGoWidth}%`, backgroundColor: '#95A5A6' }}
+          className="relative flex items-center justify-center font-bold text-sm tracking-wide"
+          style={{ width: `${noGoWidth}%`, backgroundColor: STAGE_COLORS.noGo.bg, color: STAGE_COLORS.noGo.text }}
         >
-          {noGoWidth > 15 ? <span className="drop-shadow-sm">No-Go</span> : null}
+          {noGoWidth > 15 ? <span>No-Go</span> : null}
         </div>
       </div>
     </div>
