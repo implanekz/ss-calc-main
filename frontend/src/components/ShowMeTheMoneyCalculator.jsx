@@ -55,6 +55,9 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0
 });
 
+// Ticks of the chart's categorical age axis, which the Retirement Stages Slider lines up with.
+const AXIS_AGES = [62, 67, 70, 75, 80, 85, 90, 95];
+
 // Retirement Stages Slider Component
 const RetirementStagesSlider = ({
     label,
@@ -65,15 +68,100 @@ const RetirementStagesSlider = ({
     isDraggingGoGo,
     setIsDraggingGoGo,
     isDraggingSlowGo,
-    setIsDraggingSlowGo
+    setIsDraggingSlowGo,
+    // Demo-only trial: once Go-Go runs past 70, split it into Ripening (62-70) and Ripe (70+),
+    // with the bar lined up to the chart's age ticks. Off = the original single Go-Go bar.
+    ripeSplit = false
 }) => {
     const sliderRef = useRef(null);
+    const wrapRef = useRef(null);
+    const lastLayoutKey = useRef('');
     const MIN_AGE = 62;
     const MAX_AGE = 95;
+    const RIPE_AGE = 70;
 
-    // Convert age to percentage position (0-100%)
+    // The chart above is categorical (62, 67, 70, 75, ... are evenly spaced), so a linear age
+    // scale would put "70" nowhere near the chart's "Ages 70" tick. Measure where the chart's
+    // ticks land and stretch the bar between the first and last tick, with ages placed piecewise
+    // between ticks. `layout` is null when no matching chart is found; we then fall back to a
+    // linear bar.
+    const [layout, setLayout] = useState(null);
+
+    useEffect(() => {
+        const measure = () => {
+            const wrap = wrapRef.current;
+            if (!wrap) return;
+            const wrapRect = wrap.getBoundingClientRect();
+            const candidates = Object.values(ChartJS.instances || {}).filter((c) => {
+                const labels = c.data && c.data.labels;
+                return c.canvas && c.canvas.isConnected && c.scales && c.scales.x
+                    && labels && labels.length === AXIS_AGES.length && /62/.test(String(labels[0]))
+                    && c.canvas.getBoundingClientRect().bottom <= wrapRect.top + 1;
+            });
+            let next = null;
+            if (ripeSplit && candidates.length) {
+                const chart = candidates.reduce((a, b) => (
+                    b.canvas.getBoundingClientRect().bottom > a.canvas.getBoundingClientRect().bottom ? b : a
+                ));
+                const canvasLeft = chart.canvas.getBoundingClientRect().left;
+                const xs = AXIS_AGES.map((_, i) => canvasLeft + chart.scales.x.getPixelForValue(i) - wrapRect.left);
+                const width = xs[xs.length - 1] - xs[0];
+                if (width > 0) {
+                    next = { left: xs[0], width, anchors: xs.map((x) => ((x - xs[0]) / width) * 100) };
+                }
+            }
+            const key = next ? `${Math.round(next.left)}:${Math.round(next.width)}` : 'none';
+            if (key !== lastLayoutKey.current) {
+                lastLayoutKey.current = key;
+                setLayout(next);
+            }
+        };
+        // Chart.js resizes itself a beat after the window does, so measure now and again once it
+        // has settled; otherwise the bar keeps the chart's old, smaller width.
+        let frame = null;
+        let timer = null;
+        const schedule = () => {
+            measure();
+            if (frame !== null) cancelAnimationFrame(frame);
+            if (timer !== null) clearTimeout(timer);
+            frame = requestAnimationFrame(measure);
+            timer = setTimeout(measure, 250);
+        };
+        schedule();
+        window.addEventListener('resize', schedule);
+        const observer = typeof ResizeObserver !== 'undefined' && wrapRef.current ? new ResizeObserver(schedule) : null;
+        if (observer) observer.observe(wrapRef.current);
+        return () => {
+            window.removeEventListener('resize', schedule);
+            if (observer) observer.disconnect();
+            if (frame !== null) cancelAnimationFrame(frame);
+            if (timer !== null) clearTimeout(timer);
+        };
+    });
+
+    const anchors = layout ? layout.anchors : AXIS_AGES.map((a) => ((a - MIN_AGE) / (MAX_AGE - MIN_AGE)) * 100);
+    const barPx = layout ? layout.width : 700;
+
+    // Convert age to percentage position (0-100%) of the bar, piecewise between axis ticks
     const ageToPercent = (age) => {
-        return ((age - MIN_AGE) / (MAX_AGE - MIN_AGE)) * 100;
+        const a = Math.max(MIN_AGE, Math.min(MAX_AGE, age));
+        for (let i = 0; i < AXIS_AGES.length - 1; i++) {
+            if (a <= AXIS_AGES[i + 1]) {
+                const t = (a - AXIS_AGES[i]) / (AXIS_AGES[i + 1] - AXIS_AGES[i]);
+                return anchors[i] + t * (anchors[i + 1] - anchors[i]);
+            }
+        }
+        return 100;
+    };
+
+    const percentToAge = (percent) => {
+        for (let i = 0; i < AXIS_AGES.length - 1; i++) {
+            if (percent <= anchors[i + 1]) {
+                const t = (percent - anchors[i]) / (anchors[i + 1] - anchors[i]);
+                return AXIS_AGES[i] + t * (AXIS_AGES[i + 1] - AXIS_AGES[i]);
+            }
+        }
+        return MAX_AGE;
     };
 
     // Convert mouse X position to age
@@ -82,8 +170,11 @@ const RetirementStagesSlider = ({
         const rect = sliderRef.current.getBoundingClientRect();
         const x = clientX - rect.left;
         const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        return Math.round(MIN_AGE + (percent / 100) * (MAX_AGE - MIN_AGE));
+        return Math.round(percentToAge(percent));
     };
+    // The drag listener reads the latest scale through a ref (the scale moves when the chart resizes)
+    const xToAgeRef = useRef(xToAge);
+    xToAgeRef.current = xToAge;
 
     // Handle mouse/touch events for Go-Go handle
     const handleGoGoMouseDown = (e) => {
@@ -99,13 +190,13 @@ const RetirementStagesSlider = ({
     useEffect(() => {
         const handleMouseMove = (e) => {
             if (isDraggingGoGo) {
-                const newAge = xToAge(e.clientX);
+                const newAge = xToAgeRef.current(e.clientX);
                 // Ensure Go-Go ends before Slow-Go
                 if (newAge < slowGoEndAge) {
                     setGoGoEndAge(newAge);
                 }
             } else if (isDraggingSlowGo) {
-                const newAge = xToAge(e.clientX);
+                const newAge = xToAgeRef.current(e.clientX);
                 // Ensure Slow-Go ends after Go-Go and before max
                 if (newAge > goGoEndAge && newAge <= MAX_AGE) {
                     setSlowGoEndAge(newAge);
@@ -132,10 +223,35 @@ const RetirementStagesSlider = ({
     const slowGoWidth = ageToPercent(slowGoEndAge) - ageToPercent(goGoEndAge);
     const noGoWidth = 100 - ageToPercent(slowGoEndAge);
 
+    // Within Go-Go, age 70 is a fixed divider: Ripening up to 70, Ripe from 70 to the Go-Go handle.
+    // Widths are percentages of the Go-Go section itself; at or before 70 it is all Ripening.
+    const showRipe = ripeSplit && goGoEndAge > RIPE_AGE;
+    const ripeningWidthOfGoGo = goGoEndAge <= RIPE_AGE || goGoWidth <= 0 ? 100 : (ageToPercent(RIPE_AGE) / goGoWidth) * 100;
+    const ripeWidthOfGoGo = 100 - ripeningWidthOfGoGo;
+    const ripeningPx = barPx * (goGoWidth / 100) * (ripeningWidthOfGoGo / 100);
+    const ripePx = barPx * (goGoWidth / 100) * (ripeWidthOfGoGo / 100);
+    const barPosStyle = layout ? { left: `${layout.left}px`, width: `${layout.width}px` } : { left: '60px', right: '30px' };
+
     return (
-        <div className="w-full" style={{ paddingLeft: '60px', paddingRight: '30px' }}>
-            <div ref={sliderRef} className="relative h-9 flex rounded-md overflow-hidden border" style={{ borderColor: STAGE_BORDER_COLOR }}>
+        <div ref={wrapRef} className="relative w-full" style={{ height: ripeSplit ? '52px' : '36px' }}>
+            {/* Bracket: Ripening and Ripe are sub-sections of the Go-Go years */}
+            <div className="absolute top-0 select-none pointer-events-none" style={barPosStyle}>
+                {showRipe && goGoWidth > 0 && (
+                    <div className="text-center" style={{ width: `${goGoWidth}%`, color: STAGE_COLORS.goGo.text }}>
+                        <div className="text-[10px] leading-3 font-extrabold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+                            {barPx * (goGoWidth / 100) > 90 ? 'Go-Go Years' : goGoWidth > 0 ? 'Go-Go' : ''}
+                        </div>
+                        <div className="h-1 border-l border-r border-b rounded-b-sm" style={{ borderColor: STAGE_GRIP_COLOR, opacity: 0.55 }} />
+                    </div>
+                )}
+            </div>
+            <div
+                ref={sliderRef}
+                className="absolute bottom-0 flex rounded-md overflow-hidden border"
+                style={{ ...barPosStyle, top: ripeSplit ? '16px' : 0, borderColor: STAGE_BORDER_COLOR }}
+            >
                 {/* Go-Go Years Section */}
+                {!showRipe ? (
                 <div
                     className="relative flex items-center justify-center font-bold text-sm tracking-wide transition-all duration-200"
                     style={{
@@ -155,6 +271,41 @@ const RetirementStagesSlider = ({
                         <span>Go-Go</span>
                     ) : null}
                 </div>
+                ) : (
+                <div
+                    className="relative flex font-bold text-sm tracking-wide transition-all duration-200"
+                    style={{ width: `${goGoWidth}%` }}
+                >
+                    <div
+                        className="relative flex items-center justify-center"
+                        style={{
+                            width: `${ripeningWidthOfGoGo}%`,
+                            backgroundColor: STAGE_COLORS.goGoRipening.bg,
+                            color: STAGE_COLORS.goGoRipening.text,
+                        }}
+                    >
+                        {label && (
+                            <div className="absolute left-3 px-2 py-0.5 bg-white/70 font-extrabold text-xs rounded tracking-wider uppercase select-none" style={{ color: STAGE_COLORS.goGo.text }}>
+                                {label}
+                            </div>
+                        )}
+                        {ripeningPx > (label ? 160 : 70) ? <span>Ripening</span> : null}
+                    </div>
+                    {ripeWidthOfGoGo > 0 && (
+                        <div
+                            className="relative flex items-center justify-center border-l"
+                            style={{
+                                width: `${ripeWidthOfGoGo}%`,
+                                backgroundColor: STAGE_COLORS.goGoRipe.bg,
+                                color: STAGE_COLORS.goGoRipe.text,
+                                borderColor: STAGE_GRIP_COLOR,
+                            }}
+                        >
+                            {ripePx > 40 ? <span>Ripe</span> : null}
+                        </div>
+                    )}
+                </div>
+                )}
 
                 {/* Handle 1: Between Go-Go and Slow-Go */}
                 <div
@@ -1678,7 +1829,7 @@ const ShowMeTheMoneyCalculator = () => {
 
     // Get user context data
     const { user, profile: realProfile, partners: realPartners, preferences: realPreferences, updateProfile, updatePartner, updatePreferences } = useUser();
-    const { isDevMode, devProfile, devPartners, updateDevProfile, updateDevPartner } = useDevMode();
+    const { isDevMode, isDemo, devProfile, devPartners, updateDevProfile, updateDevPartner } = useDevMode();
 
     // Use dev or real data based on mode
     const profile = isDevMode ? devProfile : realProfile;
@@ -4531,6 +4682,7 @@ const ShowMeTheMoneyCalculator = () => {
                                         setIsDraggingGoGo={setIsDraggingGoGo}
                                         isDraggingSlowGo={isDraggingSlowGo}
                                         setIsDraggingSlowGo={setIsDraggingSlowGo}
+                                        ripeSplit={isDemo}
                                     />
                                     {isMarried && (
                                         <RetirementStagesSlider
@@ -4543,6 +4695,7 @@ const ShowMeTheMoneyCalculator = () => {
                                             setIsDraggingGoGo={setIsDraggingSpouseGoGo}
                                             isDraggingSlowGo={isDraggingSpouseSlowGo}
                                             setIsDraggingSlowGo={setIsDraggingSpouseSlowGo}
+                                            ripeSplit={isDemo}
                                         />
                                     )}
                                     {isTimelineReachable({ isMarried, spouse1Dob, spouse2Dob }) && (
