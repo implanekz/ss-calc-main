@@ -31,6 +31,9 @@ export const SCENARIO_INK = {
 // Warm-stone ramp built from brand sand tokens: Go-Go (deepest) fading to No-Go (palest).
 export const STAGE_COLORS = {
     goGo: { bg: '#CFC2AE', text: '#3F3833' },
+    // Go-Go splits at 70 into two shades of the same stone: Ripening (62-70), then Ripe (70+).
+    goGoRipening: { bg: '#C6B8A2', text: '#3F3833' },
+    goGoRipe: { bg: '#D6CAB8', text: '#3F3833' },
     slowGo: { bg: '#E0D6C6', text: '#4E4743' },
     noGo: { bg: '#EFE9DF', text: '#6E655D' },
 };
