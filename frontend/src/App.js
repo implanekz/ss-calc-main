@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Link, useLocation } from 'react-router-dom';
 import { UserProvider, useUser } from './contexts/UserContext.jsx';
 import { DevModeProvider, useDevMode } from './contexts/DevModeContext.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
@@ -21,7 +21,7 @@ function App() {
 
 // Wrapper to handle Dev Mode vs Real Mode
 function AppWithDevMode() {
-  const { isDevMode, devUser, devProfile, toggleDevMode, devResetOnboarding, devClearAll } = useDevMode();
+  const { isDevMode, isDemo, devUser, devProfile, toggleDevMode, devResetOnboarding, devClearAll } = useDevMode();
   const { user: realUser, profile: realProfile, loading: realLoading } = useUser();
   const location = useLocation();
 
@@ -40,6 +40,33 @@ function AppWithDevMode() {
     '/start-stop-start'
   ];
   const isHelperRoute = helperAppRoutes.some(route => location.pathname.startsWith(route));
+
+  // Demo host banner: no login, edit everything in Settings, data persists here
+  const DemoBanner = () => (
+    <div className="bg-slate-900 text-slate-100 px-4 py-1.5 text-xs">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+        <p>
+          <span className="font-bold tracking-wide">DEMO MODE</span>
+          <span className="text-slate-400"> · Saved in this browser only</span>
+        </p>
+        <div className="flex items-center gap-3">
+          <Link to="/settings" className="font-semibold underline underline-offset-2 hover:text-white">
+            Edit profile &amp; DOBs
+          </Link>
+          <button
+            onClick={() => {
+              if (window.confirm('Reset the demo profile to its defaults? Your edited DOBs, PIAs and partner will be cleared.')) {
+                devClearAll();
+              }
+            }}
+            className="text-slate-400 hover:text-white"
+          >
+            Reset demo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   // Dev Mode Banner and Controls
   const DevModeBanner = () => (
@@ -121,7 +148,7 @@ function AppWithDevMode() {
   if (isHelperRoute) {
     return (
       <>
-        {isDevMode && <DevModeBanner />}
+        {isDemo ? <DemoBanner /> : isDevMode && <DevModeBanner />}
         <CalculatorApp />
       </>
     );
@@ -130,7 +157,7 @@ function AppWithDevMode() {
   // For main app routes, require onboarding completion
   return (
     <>
-      {isDevMode && <DevModeBanner />}
+      {isDemo ? <DemoBanner /> : isDevMode && <DevModeBanner />}
       {!isDevMode && !user && <DevModeToggle />}
 
       {!profile?.onboarding_completed_at ? (

@@ -4,7 +4,7 @@ import { useDevMode } from '../contexts/DevModeContext';
 
 const Settings = () => {
     const { user, profile: realProfile, partners: realPartners, children: realChildren, updateProfile, updatePartner, addPartner } = useUser();
-    const { isDevMode, devProfile, devPartners, devChildren, updateDevProfile, updateDevPartner } = useDevMode();
+    const { isDevMode, isDevTools, devProfile, devPartners, devChildren, updateDevProfile, updateDevPartner } = useDevMode();
 
     const profile = isDevMode ? devProfile : realProfile;
     const partners = isDevMode ? devPartners : realPartners;
@@ -255,7 +255,7 @@ const Settings = () => {
                     <p className="text-gray-500 text-lg">Manage your personal information and preferences</p>
                 </div>
 
-                {isDevMode && (
+                {isDevTools && (
                     <div className="mb-6 p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
                         <div className="flex items-center gap-2">
                             <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">

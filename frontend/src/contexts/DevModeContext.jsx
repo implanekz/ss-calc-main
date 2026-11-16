@@ -6,6 +6,77 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const DevModeContext = createContext(null);
 
+// Demo mode: on these hosts only, skip login and run on a browser-stored
+// demo identity that persists between visits and is edited in Settings.
+// Production (ret1re.com) never matches, so real auth is untouched there.
+// demo.localhost previews demo mode locally (http://demo.localhost:3000).
+//
+// Demo and dev mode share this browser-data plumbing (`isDevMode` means "use
+// browser data, not Supabase"), but never share data or UI: each host is its
+// own storage origin, and dev tooling is gated on `isDevTools`, which is
+// false in demo mode.
+export const DEMO_HOSTS = ['test.ret1re.com', 'demo.localhost'];
+
+export const isDemoHost = () =>
+  typeof window !== 'undefined' && DEMO_HOSTS.includes(window.location.hostname);
+
+const isLocalDev = () =>
+  process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost';
+
+const shouldAutoSeed = () => isDemoHost() || isLocalDev();
+
+const readSaved = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Settings saves camelCase keys while calculators read snake_case first (the
+// real API normalizes both). Mirror each edited field to its twins so a DOB or
+// PIA edit in Settings reaches every calculator.
+const PROFILE_KEY_TWINS = [
+  ['dateOfBirth', 'date_of_birth'],
+  ['firstName', 'first_name'],
+  ['lastName', 'last_name'],
+  ['relationshipStatus', 'relationship_status'],
+  ['piaAtFra', 'pia_at_fra']
+];
+const PARTNER_KEY_TWINS = [
+  ['dateOfBirth', 'date_of_birth'],
+  ['firstName', 'first_name'],
+  ['lastName', 'last_name'],
+  ['piaAtFra', 'pia_at_fra', 'pia']
+];
+
+export const mirrorKeys = (updates, twins) => {
+  const out = { ...updates };
+  twins.forEach((group) => {
+    const present = group.find((key) => Object.prototype.hasOwnProperty.call(updates, key));
+    if (present) group.forEach((key) => { out[key] = updates[present]; });
+  });
+  return out;
+};
+
+const makeDefaultUser = () => ({
+  id: 'dev-user-id',
+  email: isDemoHost() ? 'demo@test.ret1re.com' : 'demo@example.com',
+  created_at: new Date().toISOString()
+});
+
+const makeDefaultProfile = () => ({
+  id: 'dev-user-id',
+  first_name: 'Demo',
+  last_name: 'User',
+  date_of_birth: '1965-01-15',
+  relationship_status: 'single',
+  onboarding_completed: true,
+  onboarding_completed_at: new Date().toISOString(),
+  created_at: new Date().toISOString()
+});
+
 // Test scenarios for quick testing
 export const TEST_SCENARIOS = {
   single: {
@@ -51,47 +122,24 @@ export const TEST_SCENARIOS = {
 };
 
 export const DevModeProvider = ({ children }) => {
+  const isDemo = isDemoHost();
+
   const [isDevMode, setIsDevMode] = useState(() => {
-    // Auto-enable dev mode in development
-    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-      return true;
-    }
+    // Demo host and local development always run on browser-stored data
+    if (shouldAutoSeed()) return true;
     return localStorage.getItem('devMode') === 'true';
   });
 
   const [devUser, setDevUser] = useState(() => {
-    const saved = localStorage.getItem('devUser');
-    if (saved) return JSON.parse(saved);
-    
-    // Auto-create a dev user in development mode
-    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-      return {
-        id: 'dev-user-id',
-        email: 'demo@example.com',
-        created_at: new Date().toISOString()
-      };
-    }
-    return null;
+    const saved = readSaved('devUser');
+    if (saved) return saved;
+    return shouldAutoSeed() ? makeDefaultUser() : null;
   });
 
   const [devProfile, setDevProfile] = useState(() => {
-    const saved = localStorage.getItem('devProfile');
-    if (saved) return JSON.parse(saved);
-    
-    // Auto-create a dev profile in development mode
-    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-      return {
-        id: 'dev-user-id',
-        first_name: 'Demo',
-        last_name: 'User',
-        date_of_birth: '1965-01-15',
-        relationship_status: 'single',
-        onboarding_completed: true,
-        onboarding_completed_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      };
-    }
-    return null;
+    const saved = readSaved('devProfile');
+    if (saved) return saved;
+    return shouldAutoSeed() ? makeDefaultProfile() : null;
   });
 
   const [devPartners, setDevPartners] = useState(() => {
@@ -120,6 +168,8 @@ export const DevModeProvider = ({ children }) => {
   }, [isDevMode, devUser, devProfile, devPartners, devChildren]);
 
   const toggleDevMode = () => {
+    // Demo host has no real login to fall back to, so demo mode stays on
+    if (isDemo) return;
     setIsDevMode(!isDevMode);
   };
 
@@ -156,11 +206,12 @@ export const DevModeProvider = ({ children }) => {
   };
 
   const devLogout = () => {
+    if (isDemo) return;
     setDevUser(null);
   };
 
   const devUpdateProfile = (updates) => {
-    setDevProfile(prev => ({ ...prev, ...updates }));
+    setDevProfile(prev => ({ ...prev, ...mirrorKeys(updates, PROFILE_KEY_TWINS) }));
   };
 
   const devCompleteOnboarding = () => {
@@ -181,14 +232,15 @@ export const DevModeProvider = ({ children }) => {
   };
 
   const devClearAll = () => {
-    setDevUser(null);
-    setDevProfile(null);
-    setDevPartners([]);
-    setDevChildren([]);
     localStorage.removeItem('devUser');
     localStorage.removeItem('devProfile');
     localStorage.removeItem('devPartners');
     localStorage.removeItem('devChildren');
+    // On the demo host, "clear" means back to the default demo identity
+    setDevUser(isDemo ? makeDefaultUser() : null);
+    setDevProfile(isDemo ? makeDefaultProfile() : null);
+    setDevPartners([]);
+    setDevChildren([]);
   };
 
   const devAddPartner = (partnerData) => {
@@ -202,11 +254,20 @@ export const DevModeProvider = ({ children }) => {
     return partner;
   };
 
-  const updateDevPartner = (index, updates) => {
+  const updateDevPartner = (index, rawUpdates) => {
+    const updates = mirrorKeys(rawUpdates, PARTNER_KEY_TWINS);
     setDevPartners(prev => {
       const newPartners = [...prev];
       if (newPartners[index]) {
         newPartners[index] = { ...newPartners[index], ...updates };
+      } else {
+        // Settings saves the spouse via index 0; create it if none exists yet
+        newPartners[index] = {
+          id: `dev-partner-${Date.now()}`,
+          user_id: 'dev-user-id',
+          ...updates,
+          created_at: new Date().toISOString()
+        };
       }
       return newPartners;
     });
@@ -234,6 +295,8 @@ export const DevModeProvider = ({ children }) => {
   const value = {
     // State
     isDevMode,
+    isDemo,
+    isDevTools: isDevMode && !isDemo,
     devUser,
     devProfile,
     devPartners,
