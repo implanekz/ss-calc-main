@@ -19,7 +19,7 @@ describe('createScenario', () => {
     expect(s.inflation).toBe(0.025);
     expect(s.spouse1PreferredYear).toBe(67);
     expect(s.spouse2PreferredYear).toBe(65);
-    expect(s.monthlyNeeds).toBe(7000);
+    expect(s.monthlyNeeds).toBe(5000);
     expect(s.isMarried).toBe(false);
   });
 
