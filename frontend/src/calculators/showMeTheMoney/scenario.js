@@ -40,7 +40,7 @@ const DEFAULTS = {
   spouseGoGoEndAge: 75,
   spouseSlowGoEndAge: 85,
 
-  monthlyNeeds: 7000,
+  monthlyNeeds: 5000,
   flowAge: 70,
   bubbleAge: 70
 };
